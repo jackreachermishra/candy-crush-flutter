@@ -1,4 +1,5 @@
 import 'package:quiver/iterables.dart';
+
 import 'array_2d.dart';
 import '../panel/objective/model/objective.dart';
 
@@ -28,10 +29,10 @@ class Level extends Object {
   double boardTop = 0.0;
 
   Level.fromJson(Map<String, dynamic> json)
-      : _index = json["level"],
-        _rows = json["rows"],
-        _cols = json["cols"],
-        _maxMoves = json["moves"] {
+    : _index = json["level"],
+      _rows = json["rows"],
+      _cols = json["cols"],
+      _maxMoves = json["moves"] {
     // Initialize the grid to the dimensions
     grid = Array2d(_rows, _cols);
 
@@ -56,7 +57,6 @@ class Level extends Object {
 
     // First-time initialization
     resetObjectives();
-
   }
 
   // @override
@@ -69,7 +69,6 @@ class Level extends Object {
   int get index => _index;
   int get maxMoves => _maxMoves;
   int get movesLeft => _movesLeft;
-
 
   List<Objective> get objectives => List.unmodifiable(_objectives);
 
@@ -88,5 +87,10 @@ class Level extends Object {
   //
   int decrementMove() {
     return (--_movesLeft).clamp(0, _maxMoves);
+  }
+
+  int addMoves(int amount) {
+    _movesLeft += amount;
+    return _movesLeft;
   }
 }

@@ -1,14 +1,15 @@
 import 'dart:async';
-import 'package:candycrush/controller/game_controller.dart';
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../ads/ads_service.dart';
 import '../animations/animation_chain.dart';
 import '../animations/animation_combo_collapse.dart';
 import '../animations/animation_combo_three.dart';
 import '../animations/animation_swap_tiles.dart';
 import '../bloc/bloc_provider.dart';
 import '../bloc/game_bloc.dart';
-import '../animations/model/animation_sequence.dart';
 import '../animations/model/animations_resolver.dart';
 import '../compoents/crush_board.dart';
 import '../model/array_2d.dart';
@@ -22,12 +23,11 @@ import '../panel/objective/components/objective_panel.dart';
 import '../splash/game_over_splash.dart';
 import '../splash/game_reshuffling_splash.dart';
 import '../splash/game_splash.dart';
+import '../brand/brand_theme.dart';
+import '../brand/progress.dart';
 
 class GamePage extends StatefulWidget {
-  const GamePage({
-    super.key,
-    required this.level,
-  });
+  const GamePage({super.key, required this.level});
   final Level level;
 
   @override
@@ -35,28 +35,38 @@ class GamePage extends StatefulWidget {
 }
 
 class _GamePageState extends State<GamePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   OverlayEntry? _gameSplash;
   late GameBloc _gameBloc;
   bool _allowGesture = false;
   StreamSubscription? _gameOverSubscription;
   bool? _gameOverReceived;
+  bool _paused = false;
+  bool _initialized = false;
+  bool _continuedThisAttempt = false;
+  bool _continuing = false;
+  int _earnedGlow = 0;
+  bool _interrupted = false;
 
   ///记录触发手势的糖果
   Tile? _gestureFromTile;
+
   ///记录触发手势的糖果位置，行和列
   RowCol? _gestureFromRowCol;
+
   ///记录手势的滑动距离
   Offset? _gestureOffsetStart;
+
   ///标记手势是否开始
   bool? _gestureStarted;
-  static const double _MIN_GESTURE_DELTA = 2.0;
+  static const double _minGestureDelta = 2.0;
   OverlayEntry? _overlayEntryFromTile;
   OverlayEntry? _overlayEntryAnimateSwapTiles;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _gameOverReceived = false;
     WidgetsBinding.instance.addPostFrameCallback(_showGameStartSplash);
   }
@@ -64,6 +74,8 @@ class _GamePageState extends State<GamePage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
     // Now that the context is available, retrieve the gameBloc
     _gameBloc = BlocProvider.of<GameBloc>(context)!.bloc;
     // Reset the objectives
@@ -74,6 +86,8 @@ class _GamePageState extends State<GamePage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    Audio.stop();
     _gameOverSubscription?.cancel();
     _gameOverSubscription = null;
     _overlayEntryAnimateSwapTiles?.remove();
@@ -83,75 +97,136 @@ class _GamePageState extends State<GamePage>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_interrupted &&
+          mounted &&
+          !_paused &&
+          _gameSplash == null &&
+          _gameOverReceived != true) {
+        _interrupted = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showPause();
+        });
+      }
+    } else {
+      _interrupted = _allowGesture;
+      _allowGesture = false;
+      Audio.stop();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    Orientation orientation = MediaQuery.of(context).orientation;
-
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.close),
-        onPressed: () {
-          Navigator.of(context).pop();
-        },
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/background/background.jpg'),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: GestureDetector(
-          onPanDown: (DragDownDetails details) => _onPanDown(details),
-          onPanStart: _onPanStart,
-          onPanEnd: _onPanEnd,
-          onPanUpdate: (DragUpdateDetails details) => _onPanUpdate(details),
-          onTap: _onTap,
-          onTapUp: _onPanEnd,
-          child: Stack(
-            children:[
-              _buildMovesLeftPanel(orientation),
-              _buildObjectivePanel(orientation),
-              _buildBoard(),
-              _buildTiles(),
-            ],
-          ),
+      body: ValeBackdrop(
+        child: Stack(
+          children: [
+            GestureDetector(
+              onPanDown: (DragDownDetails details) => _onPanDown(details),
+              onPanStart: _onPanStart,
+              onPanEnd: _onPanEnd,
+              onPanUpdate: (DragUpdateDetails details) => _onPanUpdate(details),
+              onTap: _onTap,
+              onTapUp: _onPanEnd,
+              child: Stack(children: [_buildBoard(), _buildTiles()]),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton.filledTonal(
+                          tooltip: 'Pause game',
+                          onPressed: _showPause,
+                          icon: const Icon(Icons.pause_rounded),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Glade ${widget.level.index}',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        StreamBuilder<int>(
+                          stream: _gameBloc.scoreChanges,
+                          initialData: _gameBloc.score,
+                          builder: (context, snapshot) => Text(
+                            '${snapshot.data ?? 0} pts',
+                            style: const TextStyle(color: Brand.gold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildMovesLeftPanel(),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildObjectivePanel()),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Builds the score panel
-  Widget _buildMovesLeftPanel(Orientation orientation) {
-    Alignment alignment = orientation == Orientation.portrait
-        ? Alignment.topLeft
-        : Alignment.topLeft;
-    return Align(
-      alignment: alignment,
-      child: const GameMovesLeftPanel(),
-    );
-  }
+  Widget _buildMovesLeftPanel() => const GameMovesLeftPanel();
 
-  // Builds the objective panel
-  Widget _buildObjectivePanel(Orientation orientation) {
-    Alignment alignment = orientation == Orientation.portrait
-        ? Alignment.topRight
-        : Alignment.bottomLeft;
+  Widget _buildObjectivePanel() => const ObjectivePanel();
 
-    return Align(
-      alignment: alignment,
-      child: const ObjectivePanel(),
+  Future<void> _showPause() async {
+    if (_paused || _gameOverReceived == true) return;
+    _paused = true;
+    _allowGesture = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Trail paused'),
+        content: const Text(
+          'Your current glade will reset if you return to the map.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Trail map'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Keep playing'),
+          ),
+        ],
+      ),
     );
+    _paused = false;
+    if (mounted && _gameOverReceived != true && _gameSplash == null) {
+      _allowGesture = true;
+    }
   }
 
   // Builds the game board
   Widget _buildBoard() {
     return Align(
-      alignment: Alignment.center,
-      child: CrushBoard(
-        level: widget.level,
-      ),
+      alignment: MediaQuery.of(context).orientation == Orientation.portrait
+          ? const Alignment(0, 0.28)
+          : Alignment.center,
+      child: CrushBoard(level: widget.level),
     );
   }
+
   // Builds the tiles
   Widget _buildTiles() {
     return StreamBuilder<bool>(
@@ -168,21 +243,16 @@ class _GamePageState extends State<GamePage>
               if (tile.type != TileType.empty &&
                   tile.type != TileType.forbidden &&
                   tile.visible) {
-
                 // Make sure the widget is correctly positioned
                 tile.setPosition();
-                tiles.add(Positioned(
-                  left: tile.x,
-                  top: tile.y,
-                  child: tile.widget,
-                ));
+                tiles.add(
+                  Positioned(left: tile.x, top: tile.y, child: tile.widget),
+                );
               }
             }
           }
 
-          return Stack(
-            children: tiles,
-          );
+          return Stack(children: tiles);
         }
         // If nothing is ready, simply return an empty container
         return Container();
@@ -199,7 +269,8 @@ class _GamePageState extends State<GamePage>
     final double left = globalPosition.dx - widget.level.boardLeft;
     return RowCol(
       col: (left / widget.level.tileWidth).floor(),
-      row: widget.level.numberOfRows -
+      row:
+          widget.level.numberOfRows -
           (top / widget.level.tileHeight).floor() -
           1,
     );
@@ -218,7 +289,9 @@ class _GamePageState extends State<GamePage>
     if (rowCol.row < 0 ||
         rowCol.row >= widget.level.numberOfRows ||
         rowCol.col < 0 ||
-        rowCol.col >= widget.level.numberOfCols) return;
+        rowCol.col >= widget.level.numberOfCols) {
+      return;
+    }
 
     // Check if the [row,col] corresponds to a possible swap
     Tile? selectedTile = _gameBloc.gameController.grid[rowCol.row][rowCol.col];
@@ -236,6 +309,7 @@ class _GamePageState extends State<GamePage>
     }
 
     if (canBePlayed) {
+      Audio.playAsset(AudioType.select);
       _gestureFromTile = selectedTile;
       _gestureFromRowCol = rowCol;
 
@@ -243,20 +317,19 @@ class _GamePageState extends State<GamePage>
       // Let's position the tile on the Overlay and inflate it a bit to make it more visible
       //
       _overlayEntryFromTile = OverlayEntry(
-          opaque: false,
-          builder: (BuildContext context) {
-            return Positioned(
-              left: _gestureFromTile!.x,
-              top: _gestureFromTile!.y,
-              child: Transform.scale(
-                scale: 1.1,
-                child: _gestureFromTile!.widget,
-              ),
-            );
-          });
+        opaque: false,
+        builder: (BuildContext context) {
+          return Positioned(
+            left: _gestureFromTile!.x,
+            top: _gestureFromTile!.y,
+            child: Transform.scale(scale: 1.1, child: _gestureFromTile!.widget),
+          );
+        },
+      );
       Overlay.of(context).insert(_overlayEntryFromTile!);
     }
   }
+
   //
   // The pointer starts to move
   //
@@ -291,11 +364,11 @@ class _GamePageState extends State<GamePage>
       int deltaCol = 0;
       bool test = false;
       if (delta.dx.abs() > delta.dy.abs() &&
-          delta.dx.abs() > _MIN_GESTURE_DELTA) {
+          delta.dx.abs() > _minGestureDelta) {
         // horizontal move
         deltaCol = delta.dx.floor().sign;
         test = true;
-      } else if (delta.dy.abs() > _MIN_GESTURE_DELTA) {
+      } else if (delta.dy.abs() > _minGestureDelta) {
         // vertical move
         deltaRow = -delta.dy.floor().sign;
         test = true;
@@ -303,15 +376,17 @@ class _GamePageState extends State<GamePage>
 
       if (test == true) {
         RowCol rowCol = RowCol(
-            row: _gestureFromRowCol!.row + deltaRow,
-            col: _gestureFromRowCol!.col + deltaCol);
+          row: _gestureFromRowCol!.row + deltaRow,
+          col: _gestureFromRowCol!.col + deltaCol,
+        );
         if (rowCol.col < 0 ||
             rowCol.col == widget.level.numberOfCols ||
             rowCol.row < 0 ||
             rowCol.row == widget.level.numberOfRows) {
           // Not possible, outside the boundaries
         } else {
-          Tile? destTile = _gameBloc.gameController.grid[rowCol.row][rowCol.col];
+          Tile? destTile =
+              _gameBloc.gameController.grid[rowCol.row][rowCol.col];
           bool canBePlayed = false;
 
           if (destTile != null) {
@@ -321,8 +396,14 @@ class _GamePageState extends State<GamePage>
 
           if (canBePlayed) {
             // We need to test the swap
-            bool swapAllowed = _gameBloc.gameController
-                .swapContains(_gestureFromTile!, destTile!);
+            bool swapAllowed = _gameBloc.gameController.swapContains(
+              _gestureFromTile!,
+              destTile!,
+            );
+            if (!swapAllowed) Audio.playAsset(AudioType.invalid);
+            if (swapAllowed && GameProgress.instance.hapticsEnabled) {
+              unawaited(HapticFeedback.selectionClick());
+            }
 
             // Do not allow the gesture recognition during the animation
             _allowGesture = false;
@@ -331,103 +412,126 @@ class _GamePageState extends State<GamePage>
             _overlayEntryFromTile?.remove();
             _overlayEntryFromTile = null;
 
-
             // 2. Generate the up/down tiles
             Tile upTile = _gestureFromTile!.cloneForAnimation();
             Tile downTile = destTile.cloneForAnimation();
 
             // 3. Remove both tiles from the game grid
-            _gameBloc.gameController.grid[rowCol.row][rowCol.col].visible = false;
+            _gameBloc.gameController.grid[rowCol.row][rowCol.col].visible =
+                false;
             _gameBloc
-                .gameController
-                .grid[_gestureFromRowCol!.row][_gestureFromRowCol!.col]
-                .visible = false;
+                    .gameController
+                    .grid[_gestureFromRowCol!.row][_gestureFromRowCol!.col]
+                    .visible =
+                false;
 
             setState(() {});
             // 4. Animate both tiles
             _overlayEntryAnimateSwapTiles = OverlayEntry(
-                opaque: false,
-                builder: (BuildContext context) {
-                  return AnimationSwapTiles(
-                    upTile: upTile,
-                    downTile: downTile,
-                    swapAllowed: swapAllowed,
-                    onComplete: () async {
-                      // 5. Put back the tiles in the game grid
-                      _gameBloc.gameController.grid[rowCol.row][rowCol.col]
-                          .visible = true;
-                      _gameBloc
-                          .gameController
-                          .grid[_gestureFromRowCol!.row][_gestureFromRowCol!.col]
-                          .visible = true;
+              opaque: false,
+              builder: (BuildContext context) {
+                return AnimationSwapTiles(
+                  upTile: upTile,
+                  downTile: downTile,
+                  swapAllowed: swapAllowed,
+                  onComplete: () async {
+                    // 5. Put back the tiles in the game grid
+                    _gameBloc
+                            .gameController
+                            .grid[rowCol.row][rowCol.col]
+                            .visible =
+                        true;
+                    _gameBloc
+                            .gameController
+                            .grid[_gestureFromRowCol!.row][_gestureFromRowCol!
+                                .col]
+                            .visible =
+                        true;
 
-                      // 6. Remove the overlay Entry
-                      _overlayEntryAnimateSwapTiles?.remove();
-                      _overlayEntryAnimateSwapTiles = null;
+                    // 6. Remove the overlay Entry
+                    _overlayEntryAnimateSwapTiles?.remove();
+                    _overlayEntryAnimateSwapTiles = null;
 
-                      if (swapAllowed == true) {
-                        // Remember if the tile we move is a bomb
-                        bool isSourceTileABomb =
-                        Tile.isBomb(_gestureFromTile!.type!);
+                    if (swapAllowed == true) {
+                      // Remember if the tile we move is a bomb
+                      bool isSourceTileABomb = Tile.isBomb(
+                        _gestureFromTile!.type!,
+                      );
 
-                        // Swap the 2 tiles，交换目标糖果和原糖果的位置和坐标信息
-                        _gameBloc.gameController
-                            .swapTiles(_gestureFromTile!, destTile);
+                      // Swap the 2 tiles，交换目标糖果和原糖果的位置和坐标信息
+                      _gameBloc.gameController.swapTiles(
+                        _gestureFromTile!,
+                        destTile,
+                      );
 
-                        // Get the tiles that need to be removed, following the swap
-                        // We need to get the tiles from all possible combos
-                        Combo comboOne = _gameBloc.gameController.getCombo(
-                            _gestureFromTile!.row, _gestureFromTile!.col);
-                        Combo comboTwo = _gameBloc.gameController
-                            .getCombo(destTile.row, destTile.col);
+                      // Get the tiles that need to be removed, following the swap
+                      // We need to get the tiles from all possible combos
+                      Combo comboOne = _gameBloc.gameController.getCombo(
+                        _gestureFromTile!.row,
+                        _gestureFromTile!.col,
+                      );
+                      Combo comboTwo = _gameBloc.gameController.getCombo(
+                        destTile.row,
+                        destTile.col,
+                      );
 
-                        /// Wait for both animations to complete
-                        await Future.wait(
-                            [_animateCombo(comboOne),_animateCombo(comboTwo)]);
+                      /// Wait for both animations to complete
+                      await Future.wait([
+                        _animateCombo(comboOne),
+                        _animateCombo(comboTwo),
+                      ]);
 
-                        // Resolve the combos
-                        _gameBloc.gameController
-                            .resolveCombo(comboOne, _gameBloc);
-                        _gameBloc.gameController
-                            .resolveCombo(comboTwo, _gameBloc);
+                      // Resolve the combos
+                      _gameBloc.gameController.resolveCombo(
+                        comboOne,
+                        _gameBloc,
+                      );
+                      _gameBloc.gameController.resolveCombo(
+                        comboTwo,
+                        _gameBloc,
+                      );
 
-                        // If the tile we moved is a bomb, we need to process the explosion
-                        if (isSourceTileABomb) {
-                          _gameBloc.gameController.proceedWithExplosion(
-                              Tile(
-                                  row: destTile.row,
-                                  col: destTile.row,
-                                  type: _gestureFromTile!.type),
-                              _gameBloc);
-                        }
-                        /// Proceed with the falling tiles
-                        await _playAllAnimations();
-
-                        /// Once this is all done, we need to recalculate all the possible swaps
-                        _gameBloc.gameController.identifySwaps();
-
-                        // Record the fact that we have played a move
-                        _gameBloc.playMove();
-
-                        if (!_gameBloc.gameController.stillMovesToPlay()) {
-                          // No moves left
-                          await _showReshufflingSplash();
-                          _gameBloc.gameController.reshuffling();
-                          setState(() {});
-                        }
-                        // Make sure there is a correct delay before refreshing the screen
-                        await Future.delayed(const Duration(milliseconds: 300));
+                      // If the tile we moved is a bomb, we need to process the explosion
+                      if (isSourceTileABomb) {
+                        _gameBloc.gameController.proceedWithExplosion(
+                          Tile(
+                            row: destTile.row,
+                            col: destTile.row,
+                            type: _gestureFromTile!.type,
+                          ),
+                          _gameBloc,
+                        );
                       }
 
-                      // 7. Reset
-                      _allowGesture = true;
-                      _onPanEnd(null);
-                      if(mounted){
+                      /// Proceed with the falling tiles
+                      await _playAllAnimations();
+
+                      /// Once this is all done, we need to recalculate all the possible swaps
+                      _gameBloc.gameController.identifySwaps();
+
+                      // Record the fact that we have played a move
+                      _gameBloc.playMove();
+
+                      if (!_gameBloc.gameController.stillMovesToPlay()) {
+                        // No moves left
+                        await _showReshufflingSplash();
+                        _gameBloc.gameController.reshuffling();
                         setState(() {});
                       }
-                    },
-                  );
-                });
+                      // Make sure there is a correct delay before refreshing the screen
+                      await Future.delayed(const Duration(milliseconds: 300));
+                    }
+
+                    // 7. Reset
+                    _allowGesture = true;
+                    _onPanEnd(null);
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  },
+                );
+              },
+            );
             Overlay.of(context).insert(_overlayEntryAnimateSwapTiles!);
           }
         }
@@ -442,16 +546,20 @@ class _GamePageState extends State<GamePage>
     if (_gestureFromTile != null && Tile.isBomb(_gestureFromTile!.type!)) {
       // Prevent the user from playing during the animation
       _allowGesture = false;
-      print("playAsset==============");
       // Play explosion
       Audio.playAsset(AudioType.bomb);
+      if (GameProgress.instance.hapticsEnabled) {
+        unawaited(HapticFeedback.lightImpact());
+      }
 
       // Proceed with explosion
-      _gameBloc.gameController.proceedWithExplosion(_gestureFromTile!, _gameBloc);
+      _gameBloc.gameController.proceedWithExplosion(
+        _gestureFromTile!,
+        _gameBloc,
+      );
 
       // Rebuild the board and proceed with animations
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-
         // Proceed with the falling tiles
         await _playAllAnimations();
 
@@ -491,7 +599,7 @@ class _GamePageState extends State<GamePage>
 
     switch (combo.type) {
       case ComboType.three:
-      // Hide the tiles before starting the animation
+        // Hide the tiles before starting the animation
         _showComboTilesForAnimation(combo, false);
 
         // Launch the animation for a chain of 3 tiles
@@ -511,7 +619,7 @@ class _GamePageState extends State<GamePage>
 
         // Play sound
         await Audio.playAsset(AudioType.move_down);
-        if(mounted){
+        if (mounted) {
           Overlay.of(context).insert(overlayEntry!);
         }
         break;
@@ -519,12 +627,12 @@ class _GamePageState extends State<GamePage>
       case ComboType.none:
       case ComboType.one:
       case ComboType.two:
-      // These type of combos are not possible, therefore directly return
+        // These type of combos are not possible, therefore directly return
         completer.complete(null);
         break;
 
       default:
-      // Hide the tiles before starting the animation
+        // Hide the tiles before starting the animation
         _showComboTilesForAnimation(combo, false);
 
         // We need to create the resulting tile
@@ -557,22 +665,26 @@ class _GamePageState extends State<GamePage>
 
         // Play sound
         await Audio.playAsset(AudioType.swap);
-        if(mounted){
+        if (mounted) {
           Overlay.of(context).insert(overlayEntry!);
         }
         break;
     }
     return completer.future;
   }
+
   //
   // Routine that launches all animations, resulting from a combo
   //
   Future<dynamic> _playAllAnimations() async {
     final completer = Completer();
+
     /// Determine all animations (and sequence of animations) that
     /// need to be played as a consequence of a combo
-    final animationResolver =
-    AnimationsResolver(gameBloc: _gameBloc, level: widget.level);
+    final animationResolver = AnimationsResolver(
+      gameBloc: _gameBloc,
+      level: widget.level,
+    );
     animationResolver.resolve();
 
     /// Determine the list of cells that are involved in the animation(s)
@@ -583,8 +695,7 @@ class _GamePageState extends State<GamePage>
     }
 
     // Obtain the animation sequences
-    final sequences =
-    animationResolver.getAnimationsSequences();
+    final sequences = animationResolver.getAnimationsSequences();
     int pendingSequences = sequences.length;
 
     /// Make all involved cells invisible
@@ -598,7 +709,6 @@ class _GamePageState extends State<GamePage>
       /// all the animations
       final overlayEntries = <OverlayEntry>[];
       for (final animationSequence in sequences) {
-
         /// Prepare all the animations at once.
         /// This is important to avoid having multiple rebuild
         /// when we are going to put them all on the Overlay
@@ -618,19 +728,19 @@ class _GamePageState extends State<GamePage>
                   // refresh the screen and yied the hand back
                   //
                   if (pendingSequences == 0) {
-
                     // Remove all OverlayEntries
                     for (final entry in overlayEntries) {
                       entry.remove();
                     }
                     _gameBloc.gameController.refreshGridAfterAnimations(
-                        animationResolver.resultingGridInTermsOfTileTypes,
-                        animationResolver.involvedCells);
+                      animationResolver.resultingGridInTermsOfTileTypes,
+                      animationResolver.involvedCells,
+                    );
 
                     // We now need to proceed with a final rebuild and yield the hand
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       // Finally, yield the hand
-                      if(!completer.isCompleted){
+                      if (!completer.isCompleted) {
                         completer.complete(null);
                       }
                     });
@@ -649,7 +759,6 @@ class _GamePageState extends State<GamePage>
     return completer.future;
   }
 
-
   //
   // The game is over
   //
@@ -661,32 +770,78 @@ class _GamePageState extends State<GamePage>
       return;
     }
     _gameOverReceived = true;
+    if (GameProgress.instance.hapticsEnabled && success) {
+      unawaited(HapticFeedback.mediumImpact());
+    }
+    if (success) {
+      _earnedGlow = await GameProgress.instance.complete(
+        widget.level.index,
+        _gameBloc.numberOfLevels,
+        score: _gameBloc.score,
+        movesLeft: widget.level.movesLeft,
+      );
+    }
+    await Audio.playAsset(success ? AudioType.win : AudioType.lost);
 
     // Since some animations could still be ongoing, let's wait a bit
     // before showing the user that the game is won
     await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
 
     // No gesture detection during the splash
     _allowGesture = false;
 
     // Show the splash
     _gameSplash = OverlayEntry(
-        opaque: false,
-        builder: (BuildContext context) {
-          return GameOverSplash(
-            success: success,
-            level: widget.level,
-            onComplete: () {
-              _gameSplash!.remove();
-              _gameSplash = null;
-
-              // as the game is over, let's leave the game
-              Navigator.of(context).pop();
-            },
-          );
-        });
+      opaque: false,
+      builder: (BuildContext context) {
+        return GameOverSplash(
+          success: success,
+          level: widget.level,
+          score: _gameBloc.score,
+          glowEarned: _earnedGlow,
+          onExit: () {
+            _gameSplash?.remove();
+            _gameSplash = null;
+            Navigator.of(context).pop();
+          },
+          onRetry: () => _openResultLevel(widget.level.index),
+          onNext: widget.level.index < _gameBloc.numberOfLevels
+              ? () => _openResultLevel(widget.level.index + 1)
+              : null,
+          onContinue: !success && !_continuedThisAttempt
+              ? _continueWithAd
+              : null,
+        );
+      },
+    );
 
     Overlay.of(context).insert(_gameSplash!);
+  }
+
+  Future<void> _continueWithAd() async {
+    if (_continuing || _continuedThisAttempt) return;
+    _continuing = true;
+    final earned = await AdsService.instance.showRewarded();
+    _continuing = false;
+    if (!mounted || !earned) return;
+    _continuedThisAttempt = true;
+    _gameBloc.addMoves(3);
+    _gameSplash?.remove();
+    _gameSplash = null;
+    _gameOverReceived = false;
+    _allowGesture = true;
+    setState(() {});
+  }
+
+  Future<void> _openResultLevel(int number) async {
+    _gameSplash?.remove();
+    _gameSplash = null;
+    final next = await _gameBloc.setLevel(number);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => GamePage(level: next)),
+    );
   }
 
   //
@@ -699,19 +854,20 @@ class _GamePageState extends State<GamePage>
 
     // Show the splash
     _gameSplash = OverlayEntry(
-        opaque: false,
-        builder: (BuildContext context) {
-          return GameSplash(
-            level: widget.level,
-            onComplete: () {
-              _gameSplash?.remove();
-              _gameSplash = null;
+      opaque: false,
+      builder: (BuildContext context) {
+        return GameSplash(
+          level: widget.level,
+          onComplete: () {
+            _gameSplash?.remove();
+            _gameSplash = null;
 
-              // allow gesture detection
-              _allowGesture = true;
-            },
-          );
-        });
+            // allow gesture detection
+            _allowGesture = true;
+          },
+        );
+      },
+    );
 
     Overlay.of(context).insert(_gameSplash!);
   }
@@ -728,21 +884,22 @@ class _GamePageState extends State<GamePage>
 
     // Show the splash
     _gameSplash = OverlayEntry(
-        opaque: false,
-        builder: (BuildContext context) {
-          return GameReshufflingSplash(
-            onComplete: () {
-              _gameSplash?.remove();
-              _gameSplash = null;
+      opaque: false,
+      builder: (BuildContext context) {
+        return GameReshufflingSplash(
+          onComplete: () {
+            _gameSplash?.remove();
+            _gameSplash = null;
 
-              // allow gesture detection
-              _allowGesture = true;
+            // allow gesture detection
+            _allowGesture = true;
 
-              // gives the hand back
-              completer.complete();
-            },
-          );
-        });
+            // gives the hand back
+            completer.complete();
+          },
+        );
+      },
+    );
 
     Overlay.of(context).insert(_gameSplash!);
 

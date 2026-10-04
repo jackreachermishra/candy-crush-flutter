@@ -23,8 +23,22 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+def releaseProperties = new Properties()
+def releasePropertiesFile = rootProject.file("key.properties")
+if (releasePropertiesFile.exists()) {
+    releasePropertiesFile.withReader("UTF-8") { reader ->
+        releaseProperties.load(reader)
+    }
+}
+def releaseSigningReady = ["storeFile", "storePassword", "keyAlias", "keyPassword"].every {
+    releaseProperties.getProperty(it)
+}
+if (releasePropertiesFile.exists() && !releaseSigningReady) {
+    throw new GradleException("android/key.properties is incomplete")
+}
+
 android {
-    namespace = "com.example.candycrush"
+    namespace = "com.jackreachermishra.prismleafvale"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,8 +48,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.candycrush"
+        applicationId = "com.jackreachermishra.prismleafvale"
+        manifestPlaceholders = [admobAppId: "ca-app-pub-3940256099942544~3347511713"]
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdk = flutter.minSdkVersion
@@ -44,11 +58,26 @@ android {
         versionName = flutterVersionName
     }
 
-    buildTypes {
+    signingConfigs {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            if (releaseSigningReady) {
+                storeFile = rootProject.file(releaseProperties.getProperty("storeFile"))
+                storePassword = releaseProperties.getProperty("storePassword")
+                keyAlias = releaseProperties.getProperty("keyAlias")
+                keyPassword = releaseProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            manifestPlaceholders = [admobAppId: "ca-app-pub-3940256099942544~3347511713"]
+        }
+        release {
+            manifestPlaceholders = [admobAppId: "ca-app-pub-4138113569115613~5280989015"]
+            if (releaseSigningReady) {
+                signingConfig = signingConfigs.release
+            }
         }
     }
 }

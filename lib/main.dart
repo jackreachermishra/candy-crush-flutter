@@ -1,34 +1,49 @@
-import 'package:candycrush/pages/game_page.dart';
-import 'package:candycrush/pages/home_page.dart';
+import 'dart:async';
+
+import 'package:prismleaf_vale/pages/home_page.dart';
 import 'package:flutter/material.dart';
 
+import 'ads/ads_service.dart';
 import 'bloc/bloc_provider.dart';
 import 'bloc/game_bloc.dart';
-import 'model/level.dart';
+import 'brand/brand_theme.dart';
+import 'brand/progress.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await GameProgress.instance.load();
   runApp(const MyApp());
+  WidgetsBinding.instance.addPostFrameCallback(
+    (_) => unawaited(AdsService.instance.initialize()),
+  );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GameBloc _gameBloc = GameBloc();
+
+  @override
+  void dispose() {
+    _gameBloc.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-
-
     return BlocProvider<GameBloc>(
-      bloc: GameBloc(),
+      bloc: _gameBloc,
       child: MaterialApp(
-        title: 'Crush Candy',
+        title: Brand.name,
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-        ),
+        theme: Brand.theme,
         home: const HomePage(),
       ),
     );
   }
 }
-

@@ -1,120 +1,81 @@
-import 'package:candycrush/panel/objective/components/objective_item.dart';
 import 'package:flutter/material.dart';
 
-import '../compoents/double_curved_container.dart';
+import '../brand/brand_theme.dart';
+import '../model/audio.dart';
 import '../model/level.dart';
+import '../panel/objective/components/objective_item.dart';
 
-class GameSplash extends StatefulWidget {
-  const GameSplash({
-    super.key,
-    required this.level,
-    this.onComplete,
-  });
-
+class GameSplash extends StatelessWidget {
+  const GameSplash({super.key, required this.level, this.onComplete});
   final Level level;
   final VoidCallback? onComplete;
 
   @override
-  _GameSplashState createState() => _GameSplashState();
-}
-
-class _GameSplashState extends State<GameSplash>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animationAppear;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      duration: const Duration(seconds: 4),
-      vsync: this,
-    )
-      ..addListener(() {
-        setState(() {});
-      })
-      ..addStatusListener((AnimationStatus status) {
-        if (status == AnimationStatus.completed) {
-          if (widget.onComplete != null) {
-            widget.onComplete?.call();
-          }
-        }
-      });
-
-    _animationAppear = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(
-          0.0,
-          0.1,
-          curve: Curves.easeIn,
-        ),
-      ),
-    );
-
-    // Play the intro
-    // Audio.playAsset(AudioType.game_start);
-
-    // Launch the animation
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Size screenSize = MediaQuery.of(context).size;
-
-    List<Widget> objectiveWidgets =  widget.level.objectives.map((obj){
-      return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: ObjectiveItem(objective: obj, level: widget.level),
-      );
-    }).toList();
-
-    return AnimatedBuilder(
-      animation: _animationAppear,
-      child: Material(
-        color: Colors.transparent,
-        child: DoubleCurvedContainer(
-          width: screenSize.width,
-          height: 150.0,
-          outerColor: Colors.blue[700]!,
-          innerColor: Colors.blue,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Text(
-                  'Level:  ${widget.level.index}',
-                  style: const TextStyle(fontSize: 24.0, color: Colors.white),
+  Widget build(BuildContext context) => Positioned.fill(
+    child: Material(
+      color: Brand.ink.withValues(alpha: 0.86),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 370),
+              child: ValeCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: Brand.gold,
+                      size: 42,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Glade ${level.index}',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Gather the light',
+                      style: TextStyle(color: Brand.mint),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Swipe neighboring leaves to match three. Tap a special piece to use it.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 20,
+                      runSpacing: 12,
+                      children: level.objectives
+                          .map((o) => ObjectiveItem(objective: o, level: level))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      '${level.maxMoves} moves to clear this glade',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () {
+                          Audio.playAsset(AudioType.game_start);
+                          onComplete?.call();
+                        },
+                        child: const Text('Begin level'),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: objectiveWidgets,
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
-      builder: (BuildContext context, Widget? child) {
-        return Positioned(
-          left: 0.0,
-          top: 150.0 + 100.0 * _animationAppear.value,
-          child: child!,
-        );
-      },
-    );
-  }
+    ),
+  );
 }

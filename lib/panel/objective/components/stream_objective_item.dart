@@ -1,24 +1,24 @@
 import 'dart:async';
-import 'package:candycrush/model/tile.dart';
+
+import 'package:prismleaf_vale/model/tile.dart';
 import 'package:flutter/material.dart';
 
-import 'package:candycrush/bloc/bloc_provider.dart';
-import 'package:candycrush/bloc/game_bloc.dart';
-import 'package:candycrush/bloc/objective_bloc.dart';
-import 'package:candycrush/panel/objective/model/objective.dart';
+import 'package:prismleaf_vale/bloc/bloc_provider.dart';
+import 'package:prismleaf_vale/bloc/game_bloc.dart';
+import 'package:prismleaf_vale/bloc/objective_bloc.dart';
+import 'package:prismleaf_vale/panel/objective/model/objective.dart';
+
 import '../model/objective_event.dart';
+import '../../../brand/brand_theme.dart';
 
 class StreamObjectiveItem extends StatefulWidget {
-  const StreamObjectiveItem({
-    super.key,
-    required this.objective,
-  });
+  const StreamObjectiveItem({super.key, required this.objective});
 
   final Objective objective;
 
   @override
   StreamObjectiveItemState createState() {
-    return new StreamObjectiveItemState();
+    return StreamObjectiveItemState();
   }
 }
 
@@ -66,8 +66,9 @@ class StreamObjectiveItemState extends State<StreamObjectiveItem> {
 
     // Simple pipe from the stream that lists all the ObjectiveEvents into
     // the BLoC that processes THIS particular Objective type
-    _subscription = gameBloc.outObjectiveEvents
-        .listen((ObjectiveEvent e) => _bloc.sendObjectives(e));
+    _subscription = gameBloc.outObjectiveEvents.listen(
+      (ObjectiveEvent e) => _bloc.sendObjectives(e),
+    );
   }
 
   void _disposeBloc() {
@@ -81,28 +82,30 @@ class StreamObjectiveItemState extends State<StreamObjectiveItem> {
     //
     // Trick to get the image of the tile
     //
-    Tile tile =
-    Tile(type: widget.objective.type, level: gameBloc.gameController.level);
-    tile.build();
+    Tile tile = Tile(
+      type: widget.objective.type,
+      level: gameBloc.gameController.level,
+    );
+    tile.build(computePosition: false);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 32.0,
-          height: 32.0,
-          child: tile.widget,
-        ),
+        SizedBox(width: 32.0, height: 32.0, child: tile.getWidgetSized(32, 32)),
         StreamBuilder<int>(
-            initialData: widget.objective.count,
-            stream: _bloc.objectiveCounter,
-            builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
-              return Text(
-                '${snapshot.data}',
-                style: const TextStyle(color: Colors.black),
-              );
-            }),
+          initialData: widget.objective.count,
+          stream: _bloc.objectiveCounter,
+          builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
+            return Text(
+              '${snapshot.data}',
+              style: const TextStyle(
+                color: Brand.cream,
+                fontWeight: FontWeight.w800,
+              ),
+            );
+          },
+        ),
       ],
     );
   }

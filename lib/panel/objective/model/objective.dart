@@ -1,5 +1,4 @@
-
-import 'package:candycrush/model/tile.dart';
+import 'package:prismleaf_vale/model/tile.dart';
 
 ///
 /// Objective
@@ -17,8 +16,9 @@ class Objective extends Object {
     List<String> parts = string.split(";");
 
     // Retrieve the type by its name (as a string)
-    type = TileType.values
-        .firstWhere((e) => e.toString().split('.')[1] == parts[1]);
+    type = TileType.values.firstWhere(
+      (e) => e.toString().split('.')[1] == parts[1],
+    );
     initialValue = int.parse(parts[0]);
 
     reset();
@@ -26,7 +26,7 @@ class Objective extends Object {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is Objective && this.type == other.type;
+      identical(this, other) || other is Objective && type == other.type;
 
   @override
   int get hashCode => type.index;

@@ -1,6 +1,5 @@
-
-import 'package:candycrush/model/tile.dart';
-import 'package:candycrush/animations/model/tile_animation.dart';
+import 'package:prismleaf_vale/model/tile.dart';
+import 'package:prismleaf_vale/animations/model/tile_animation.dart';
 
 class AnimationSequence {
   // Range of time for this sequence of animations

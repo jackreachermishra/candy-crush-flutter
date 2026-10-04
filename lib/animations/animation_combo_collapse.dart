@@ -29,15 +29,22 @@ class _AnimationComboCollapseState extends State<AnimationComboCollapse>
     super.initState();
 
     _controller =
-        AnimationController(duration: const Duration(milliseconds: 300), vsync: this)
+        AnimationController(
+            duration: const Duration(milliseconds: 300),
+            vsync: this,
+          )
           ..addListener(() {
             setState(() {});
           })
           ..addStatusListener((AnimationStatus status) {
             if (status == AnimationStatus.completed) {
-              widget.onComplete();}
+              widget.onComplete();
+            }
           });
-    animationIn = CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic);
+    animationIn = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOutCubic,
+    );
     _controller.forward(from: 0.0);
   }
 
@@ -75,8 +82,6 @@ class _AnimationComboCollapseState extends State<AnimationComboCollapse>
         ),
       ),
     );
-    return Stack(
-      children: children,
-    );
+    return Stack(children: children);
   }
 }

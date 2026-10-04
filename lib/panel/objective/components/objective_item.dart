@@ -20,17 +20,13 @@ class ObjectiveItem extends StatelessWidget {
     // Trick to get the image of the tile
     //
     Tile tile = Tile(type: objective.type, level: level);
-    tile.build();
+    tile.build(computePosition: false);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 32.0,
-          height: 32.0,
-          child: tile.widget,
-        ),
+        SizedBox(width: 32.0, height: 32.0, child: tile.getWidgetSized(32, 32)),
         Text('${objective.count}', style: const TextStyle(color: Colors.white)),
       ],
     );

@@ -1,106 +1,42 @@
 import 'package:flutter/material.dart';
 
-import '../compoents/double_curved_container.dart';
+import '../brand/brand_theme.dart';
 
 class GameReshufflingSplash extends StatefulWidget {
-  GameReshufflingSplash({
-    Key? key,
-    this.onComplete,
-  }) : super(key: key);
-
+  const GameReshufflingSplash({super.key, this.onComplete});
   final VoidCallback? onComplete;
-
   @override
-  _GameReshufflingSplashState createState() => _GameReshufflingSplashState();
+  State<GameReshufflingSplash> createState() => _GameReshufflingSplashState();
 }
 
-class _GameReshufflingSplashState extends State<GameReshufflingSplash>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animationAppear;
-
+class _GameReshufflingSplashState extends State<GameReshufflingSplash> {
   @override
   void initState() {
     super.initState();
-
-    _controller = AnimationController(
-      duration: Duration(seconds: 2),
-      vsync: this,
-    )
-      ..addListener(() {
-        setState(() {});
-      })
-      ..addStatusListener((AnimationStatus status) {
-        if (status == AnimationStatus.completed) {
-          if (widget.onComplete != null) {
-            widget.onComplete?.call();
-          }
-        }
-      });
-
-    _animationAppear = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(
-          0.0,
-          0.1,
-          curve: Curves.easeIn,
-        ),
-      ),
-    );
-
-    // Play the intro
-    // Audio.playAsset(AudioType.game_start);
-
-    // Launch the animation
-    _controller.forward();
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) widget.onComplete?.call();
+    });
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Size screenSize = MediaQuery.of(context).size;
-
-    Color darkColor = Colors.blue[700]!;
-    Color lightColor = Colors.blue;
-    String message = "Reshuffling";
-
-    return AnimatedBuilder(
-      animation: _animationAppear,
-      child: Material(
-        color: Colors.transparent,
-        child: DoubleCurvedContainer(
-          width: screenSize.width,
-          height: 150.0,
-          outerColor: darkColor,
-          innerColor: lightColor,
-          child: Container(
-            color: lightColor,
-            child: Center(
-              child: Text(message,
-                  style: const TextStyle(
-                    fontSize: 50.0,
-                    color: Colors.white,
-                  )),
-            ),
+  Widget build(BuildContext context) => Positioned.fill(
+    child: Material(
+      color: Brand.ink.withValues(alpha: 0.82),
+      child: Center(
+        child: ValeCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.shuffle_rounded, color: Brand.gold, size: 42),
+              const SizedBox(height: 12),
+              Text(
+                'A fresh trail appears',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ],
           ),
         ),
       ),
-      builder: (BuildContext context, Widget? child) {
-        return Positioned(
-          left: 0.0,
-          top: 150.0 + 100.0 * _animationAppear.value,
-          child: child!,
-        );
-      },
-    );
-  }
+    ),
+  );
 }

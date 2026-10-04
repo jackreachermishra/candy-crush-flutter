@@ -1,6 +1,6 @@
 import 'dart:collection';
 
-import 'package:candycrush/model/tile.dart';
+import 'package:prismleaf_vale/model/tile.dart';
 
 import 'chain.dart';
 
@@ -68,28 +68,34 @@ class Combo {
           combo4IsHorizontal = (horizontalChain != null);
           switch (oneTile!.type) {
             case TileType.red:
-              resultingTileType =
-              !combo4IsHorizontal ? TileType.red_h : TileType.red_v;
+              resultingTileType = !combo4IsHorizontal
+                  ? TileType.red_h
+                  : TileType.red_v;
               break;
             case TileType.green:
-              resultingTileType =
-              !combo4IsHorizontal ? TileType.green_h : TileType.green_v;
+              resultingTileType = !combo4IsHorizontal
+                  ? TileType.green_h
+                  : TileType.green_v;
               break;
             case TileType.blue:
-              resultingTileType =
-              !combo4IsHorizontal ? TileType.blue_h : TileType.blue_v;
+              resultingTileType = !combo4IsHorizontal
+                  ? TileType.blue_h
+                  : TileType.blue_v;
               break;
             case TileType.orange:
-              resultingTileType =
-              !combo4IsHorizontal ? TileType.orange_h : TileType.orange_v;
+              resultingTileType = !combo4IsHorizontal
+                  ? TileType.orange_h
+                  : TileType.orange_v;
               break;
             case TileType.yellow:
-              resultingTileType =
-              !combo4IsHorizontal ? TileType.yellow_h : TileType.yellow_v;
+              resultingTileType = !combo4IsHorizontal
+                  ? TileType.yellow_h
+                  : TileType.yellow_v;
               break;
             case TileType.purple:
-              resultingTileType =
-              !combo4IsHorizontal ? TileType.purple_h : TileType.purple_v;
+              resultingTileType = !combo4IsHorizontal
+                  ? TileType.purple_h
+                  : TileType.purple_v;
               break;
             default:
               break;
@@ -115,13 +121,4 @@ class Combo {
 //
 // All combo types
 //
-enum ComboType {
-  none,
-  one,
-  two,
-  three,
-  four,
-  five,
-  six,
-  seven,
-}
+enum ComboType { none, one, two, three, four, five, six, seven }

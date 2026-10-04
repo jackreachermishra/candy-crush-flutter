@@ -1,109 +1,125 @@
 import 'package:flutter/material.dart';
 
-import '../compoents/double_curved_container.dart';
+import '../ads/ads_service.dart';
+import '../brand/brand_theme.dart';
 import '../model/level.dart';
 
-class GameOverSplash extends StatefulWidget {
+class GameOverSplash extends StatelessWidget {
   const GameOverSplash({
     super.key,
     required this.success,
     required this.level,
-    required this.onComplete,
+    required this.onExit,
+    required this.onRetry,
+    this.onNext,
+    this.onContinue,
+    this.score = 0,
+    this.glowEarned = 0,
   });
-
   final Level level;
-  final VoidCallback onComplete;
   final bool success;
+  final VoidCallback onExit;
+  final VoidCallback onRetry;
+  final VoidCallback? onNext;
+  final VoidCallback? onContinue;
+  final int score;
+  final int glowEarned;
 
   @override
-  _GameOverSplashState createState() => _GameOverSplashState();
-}
-
-class _GameOverSplashState extends State<GameOverSplash>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animationAppear;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      duration: Duration(seconds: 3),
-      vsync: this,
-    )
-      ..addListener(() {
-        setState(() {});
-      })
-      ..addStatusListener((AnimationStatus status) {
-        if (status == AnimationStatus.completed) {
-          widget.onComplete();
-        }
-      });
-
-    _animationAppear = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(
-          0.0,
-          0.1,
-          curve: Curves.easeIn,
-        ),
-      ),
-    );
-
-    // Play the intro
-    // Audio.playAsset(AudioType.game_start);
-
-    // Launch the animation
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Size screenSize = MediaQuery.of(context).size;
-
-    Color darkColor = widget.success ? Colors.green[700]! : Colors.red[700]!;
-    Color lightColor = widget.success ? Colors.green : Colors.red;
-    String message = widget.success ? "You Win" : "Game Over";
-
-    return AnimatedBuilder(
-      animation: _animationAppear,
-      child: Material(
-        color: Colors.transparent,
-        child: DoubleCurvedContainer(
-          width: screenSize.width,
-          height: 150.0,
-          outerColor: darkColor,
-          innerColor: lightColor,
-          child: Container(
-            color: lightColor,
-            child: Center(
-              child: Text(message,
-                  style: const TextStyle(
-                    fontSize: 50.0,
-                    color: Colors.white,
-                  )),
+  Widget build(BuildContext context) => Positioned.fill(
+    child: Material(
+      color: Brand.ink.withValues(alpha: 0.9),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 370),
+              child: ValeCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      success ? Icons.auto_awesome_rounded : Icons.spa_rounded,
+                      color: success ? Brand.gold : Brand.warning,
+                      size: 52,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      success ? 'Glade restored!' : 'Almost there',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      success
+                          ? 'Your matches lit Glade ${level.index}.'
+                          : 'Try another route through Glade ${level.index}.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Score: $score'),
+                    if (success) Text('+$glowEarned glow'),
+                    const SizedBox(height: 24),
+                    if (!success && onContinue != null) ...[
+                      AnimatedBuilder(
+                        animation: AdsService.instance,
+                        builder: (context, _) => Column(
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: AdsService.instance.rewardedReady
+                                    ? onContinue
+                                    : null,
+                                icon: const Icon(Icons.play_circle_outline),
+                                label: Text(
+                                  AdsService.instance.rewardedReady
+                                      ? 'Watch an ad for 3 moves'
+                                      : 'Ad unavailable',
+                                ),
+                              ),
+                            ),
+                            if (AdsService.instance.ready &&
+                                !AdsService.instance.rewardedReady &&
+                                !AdsService.instance.rewardedLoading)
+                              TextButton(
+                                onPressed: AdsService.instance.loadRewarded,
+                                child: const Text('Retry ad'),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (success && onNext != null) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: onNext,
+                          child: const Text('Next glade'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: onRetry,
+                        child: const Text('Play again'),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: onExit,
+                      child: const Text('Trail map'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
       ),
-      builder: (BuildContext context, Widget? child) {
-        return Positioned(
-          left: 0.0,
-          top: 150.0 + 100.0 * _animationAppear.value,
-          child: child!,
-        );
-      },
-    );
-  }
+    ),
+  );
 }

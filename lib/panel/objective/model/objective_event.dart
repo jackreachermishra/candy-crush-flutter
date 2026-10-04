@@ -1,6 +1,4 @@
-
-
-import 'package:candycrush/model/tile.dart';
+import 'package:prismleaf_vale/model/tile.dart';
 
 ///
 /// ObjectiveEvent
@@ -13,8 +11,5 @@ class ObjectiveEvent {
   // Remaining before reaching the objective for this type of Objective
   final int remaining;
 
-  ObjectiveEvent({
-    required this.type,
-    required this.remaining,
-  });
+  ObjectiveEvent({required this.type, required this.remaining});
 }

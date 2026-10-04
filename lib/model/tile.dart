@@ -1,6 +1,12 @@
+// TileType names are used in level data; keep their existing spellings.
+// ignore_for_file: constant_identifier_names
+
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
 import 'level.dart';
+import '../brand/vale_piece.dart';
 
 /// Tile
 class Tile extends Object {
@@ -56,87 +62,18 @@ class Tile extends Object {
   // Builds the tile in terms of "decoration" ( = image )
   //
   void build({bool computePosition = true}) {
-    if (depth > 0 && type != TileType.wall) {
-      _widget = Stack(
-        children: [
-          Opacity(
-            opacity: 0.7,
-            child: Transform.scale(
-              scale: 0.8,
-              child: _buildDecoration(),
-            ),
-          ),
-          _buildDecoration('deco/ice_02.png'),
-        ],
-      );
-    } else if (type == TileType.empty) {
+    if (type == TileType.empty || type == TileType.forbidden) {
       _widget = Container();
     } else {
-      _widget = _buildDecoration();
+      _widget = ValePiece(
+        type: type!,
+        frozen: depth > 0 && type != TileType.wall,
+      );
     }
 
     if (computePosition) {
       setPosition();
     }
-  }
-
-  Widget _buildDecoration([String path = ""]) {
-    String imageAsset = path;
-    if (imageAsset == "") {
-      if(depth < 0)depth = 0;
-      switch (type) {
-        case TileType.wall:
-          imageAsset = "deco/wall.png";
-          break;
-
-        case TileType.bomb:
-          imageAsset = "bombs/mine.png";
-          break;
-
-        case TileType.flare:
-          imageAsset = "bombs/tnt.png";
-          break;
-
-        case TileType.wrapped:
-          imageAsset = "tiles/multicolor.png";
-          break;
-
-        case TileType.fireball:
-          imageAsset = "bombs/rocket.png";
-          break;
-
-        case TileType.blue_v:
-        case TileType.blue_h:
-        case TileType.red_v:
-        case TileType.red_h:
-        case TileType.green_v:
-        case TileType.green_h:
-        case TileType.orange_v:
-        case TileType.orange_h:
-        case TileType.purple_v:
-        case TileType.purple_h:
-        case TileType.yellow_v:
-        case TileType.yellow_h:
-         final name = type!.name.split("_").firstOrNull;
-          imageAsset = "bombs/$name.png";
-          break;
-
-        default:
-          try {
-            imageAsset = "tiles/${type!.name}.png";
-          } catch (e) {
-            return Container();
-          }
-          break;
-      }
-    }
-    return Container(
-      decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/$imageAsset'),
-            fit: BoxFit.contain,
-          )),
-    );
   }
 
   //
@@ -160,6 +97,7 @@ class Tile extends Object {
 
     return tile;
   }
+
   /// Swaps this tile (row, col) with the ones of another Tile
   void swapRowColWith(Tile destTile) {
     ///交换双方的坐标信息和位置信息
@@ -185,11 +123,8 @@ class Tile extends Object {
   //
   Widget get widget => getWidgetSized(level!.tileWidth, level!.tileHeight);
 
-  Widget getWidgetSized(double width, double height) => SizedBox(
-    width: width,
-    height: height,
-    child: _widget,
-  );
+  Widget getWidgetSized(double width, double height) =>
+      SizedBox(width: width, height: height, child: _widget);
 
   //
   // Can the Tile move?
@@ -201,8 +136,8 @@ class Tile extends Object {
   //
   bool get canFall =>
       type != TileType.wall &&
-          type != TileType.forbidden &&
-          type != TileType.empty;
+      type != TileType.forbidden &&
+      type != TileType.empty;
 
   // ################  HELPERS  ######################
   //

@@ -28,25 +28,26 @@ class _AnimationSwapTilesState extends State<AnimationSwapTiles>
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    )
-      ..addListener(() {
-        setState(() {});
-      })
-      ..addStatusListener((AnimationStatus status) {
-        if (status == AnimationStatus.completed) {
-          if (!widget.swapAllowed) {
-            _controller.reverse();
-          } else {
-            widget.onComplete();
-          }
-        }
-        if (status == AnimationStatus.dismissed) {
-          widget.onComplete();
-        }
-      });
+    _controller =
+        AnimationController(
+            duration: const Duration(milliseconds: 300),
+            vsync: this,
+          )
+          ..addListener(() {
+            setState(() {});
+          })
+          ..addStatusListener((AnimationStatus status) {
+            if (status == AnimationStatus.completed) {
+              if (!widget.swapAllowed) {
+                _controller.reverse();
+              } else {
+                widget.onComplete();
+              }
+            }
+            if (status == AnimationStatus.dismissed) {
+              widget.onComplete();
+            }
+          });
     _controller.forward(from: 0.0);
   }
 

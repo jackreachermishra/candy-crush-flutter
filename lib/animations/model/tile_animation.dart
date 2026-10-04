@@ -1,5 +1,5 @@
-import 'package:candycrush/model/row_col.dart';
-import 'package:candycrush/model/tile.dart';
+import 'package:prismleaf_vale/model/row_col.dart';
+import 'package:prismleaf_vale/model/tile.dart';
 
 /// TileAnimation
 /// Class which is used to register a Tile animation
@@ -22,10 +22,4 @@ class TileAnimation {
 }
 
 /// Types of animations
-enum TileAnimationType {
-  moveDown,
-  avalanche,
-  newTile,
-  chain,
-  collapse,
-}
+enum TileAnimationType { moveDown, avalanche, newTile, chain, collapse }

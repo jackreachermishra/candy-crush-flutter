@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:quiver/iterables.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:get/get.dart';
+
 import '../controller/game_controller.dart';
 import '../model/level.dart';
 import '../model/tile.dart';
@@ -21,8 +23,7 @@ class GameBloc implements BlocBase {
   // at game load is ready.  This is done as soon as this BLoC receives the
   // dimensions/position of the board as well as the dimensions of a tile
   //
-  final  _readyToDisplayTilesController =
-  BehaviorSubject<bool>();
+  final _readyToDisplayTilesController = BehaviorSubject<bool>();
   Function get setReadyToDisplayTiles =>
       _readyToDisplayTilesController.sink.add;
   Stream<bool> get outReadyToDisplayTiles =>
@@ -49,14 +50,20 @@ class GameBloc implements BlocBase {
   final _movesLeftController = PublishSubject<int>();
   Stream<int> get movesLeftCount => _movesLeftController.stream;
 
+  final _scoreController = BehaviorSubject<int>.seeded(0);
+  Stream<int> get scoreChanges => _scoreController.stream;
+  int score = 0;
+
   //
   // List of all level definitions
   //
   final _levels = <Level>[];
+  late final Future<void> _levelsLoaded;
   int _maxLevel = 0;
   int _levelNumber = 0;
   int get levelNumber => _levelNumber;
   int get numberOfLevels => _maxLevel;
+  Future<void> get levelsReady => _levelsLoaded;
 
   //
   // The Controller for the Game being played
@@ -69,7 +76,7 @@ class GameBloc implements BlocBase {
   //
   GameBloc() {
     // Load all levels definitions
-    _loadLevels();
+    _levelsLoaded = _loadLevels();
   }
 
   //
@@ -81,7 +88,10 @@ class GameBloc implements BlocBase {
   //  e.g.  bloc.setLevel(1).then(() => )
   //
   Future<Level> setLevel(int levelIndex) async {
-    _levelNumber = (levelIndex - 1).clamp(0, _maxLevel);
+    await _levelsLoaded;
+    _levelNumber = (levelIndex - 1).clamp(0, _maxLevel - 1);
+    score = 0;
+    _scoreController.add(score);
 
     //
     // Initialize the Game
@@ -99,7 +109,7 @@ class GameBloc implements BlocBase {
   //
   // Load the levels definitions from assets
   //
-  _loadLevels() async {
+  Future<void> _loadLevels() async {
     String jsonContent = await rootBundle.loadString("assets/levels.json");
     Map<dynamic, dynamic> list = json.decode(jsonContent);
     enumerate(list["levels"] as List).forEach((levelItem) {
@@ -114,9 +124,12 @@ class GameBloc implements BlocBase {
   // knowing it so that actions can be taken
   //
   void pushTileEvent(TileType tileType, int counter) {
+    score += counter * 10;
+    _scoreController.add(score);
     // We first need to decrement the objective by the counter
-    Objective? objective = gameController.level.objectives
-        .firstWhereOrNull((o) => o.type == tileType);
+    Objective? objective = gameController.level.objectives.firstWhereOrNull(
+      (o) => o.type == tileType,
+    );
     if (objective == null) {
       return;
     }
@@ -125,15 +138,16 @@ class GameBloc implements BlocBase {
 
     // Send a notification
     sendObjectiveEvent(
-        ObjectiveEvent(type: tileType, remaining: objective.count));
+      ObjectiveEvent(type: tileType, remaining: objective.count),
+    );
 
     // Check if the game is won
     bool isWon = true;
-    gameController.level.objectives.forEach((Objective objective) {
+    for (final Objective objective in gameController.level.objectives) {
       if (objective.count > 0) {
         isWon = false;
       }
-    });
+    }
 
     // If the game is won, send a notification
     if (isWon) {
@@ -157,6 +171,11 @@ class GameBloc implements BlocBase {
     }
   }
 
+  void addMoves(int amount) {
+    if (amount <= 0) return;
+    _movesLeftController.sink.add(gameController.level.addMoves(amount));
+  }
+
   //
   // When a game starts, we need to reset everything
   //
@@ -170,5 +189,6 @@ class GameBloc implements BlocBase {
     _objectiveEventsController.close();
     _gameIsOverController.close();
     _movesLeftController.close();
+    _scoreController.close();
   }
 }

@@ -1,52 +1,41 @@
+// Audio names correspond to the original short tones generated in tool/generate_sfx.ps1.
+// ignore_for_file: constant_identifier_names
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
-class Audio {
-  static final AudioPlayer audioPlayer = AudioPlayer();
-  /// Initialization.  We pre-load all sounds.
-  static final items = [
-    AudioSource.uri(Uri.parse("asset:///assets/audio/swap.wav")),
-    AudioSource.uri(Uri.parse("asset:///assets/audio/move_down.wav")),
-    AudioSource.uri(Uri.parse("asset:///assets/audio/bomb.wav")),
-    AudioSource.uri(Uri.parse("asset:///assets/audio/game_start.wav")),
-    AudioSource.uri(Uri.parse("asset:///assets/audio/win.wav")),
-    AudioSource.uri(Uri.parse("asset:///assets/audio/lost.wav")),
-  ];
+import '../brand/progress.dart';
 
-  static playAsset(AudioType audioType) async {
-    switch (audioType) {
-      case AudioType.swap:
-        await audioPlayer.setAudioSource(items[0]);
-        audioPlayer.play();
-        break;
-      case AudioType.move_down:
-        await audioPlayer.setAudioSource(items[1]);
-        audioPlayer.play();
-        break;
-      case AudioType.bomb:
-        await audioPlayer.setAudioSource(items[2]);
-        audioPlayer.play();
-        break;
-      case AudioType.game_start:
-        await audioPlayer.setAudioSource(items[3]);
-        audioPlayer.play();
-        break;
-      case AudioType.win:
-        await audioPlayer.setAudioSource(items[4]);
-        audioPlayer.play();
-        break;
-      case AudioType.lost:
-        await audioPlayer.setAudioSource(items[5]);
-        audioPlayer.play();
-        break;
-    }
+class Audio {
+  static AudioPlayer? _player;
+  static Future<void> _operations = Future.value();
+
+  static Future<void> playAsset(AudioType type) {
+    if (!GameProgress.instance.soundEnabled) return Future.value();
+    _operations = _operations.then((_) async {
+      try {
+        final player = _player ??= AudioPlayer();
+        await player.stop();
+        await player.setAsset('assets/audio/${type.name}.wav');
+        if (GameProgress.instance.soundEnabled) {
+          unawaited(
+            player.play().catchError((Object error) {
+              debugPrint('Unable to play sound: $error');
+            }),
+          );
+        }
+      } catch (error) {
+        debugPrint('Unable to play sound: $error');
+      }
+    });
+    return _operations;
+  }
+
+  static Future<void> stop() async {
+    await _operations;
+    await _player?.stop();
   }
 }
 
-enum AudioType {
-  swap,
-  move_down,
-  bomb,
-  game_start,
-  win,
-  lost,
-}
+enum AudioType { select, invalid, swap, move_down, bomb, game_start, win, lost }

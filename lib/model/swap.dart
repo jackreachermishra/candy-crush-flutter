@@ -1,7 +1,4 @@
-
-
-import 'package:candycrush/model/tile.dart';
-
+import 'package:prismleaf_vale/model/tile.dart';
 
 /// Identifies a possible swap between 2 tiles
 /// 识别两个糖果之间是否能交换
@@ -9,10 +6,7 @@ class Swap extends Object {
   Tile from;
   Tile to;
 
-  Swap({
-    required this.from,
-    required this.to,
-  });
+  Swap({required this.from, required this.to});
 
   @override
   int get hashCode => from.hashCode * 1000 + to.hashCode;

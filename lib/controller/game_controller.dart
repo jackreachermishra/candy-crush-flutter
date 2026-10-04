@@ -11,7 +11,6 @@ import '../model/swap.dart';
 import '../model/swap_move.dart';
 import '../model/tile.dart';
 
-
 class GameController {
   late Level level;
   late Array2d<Tile> _grid;
@@ -140,12 +139,13 @@ class GameController {
   //
   // Initialization
   //
-  GameController({
-    required this.level,
-  }) {
+  GameController({required this.level}) {
     // Initialize the grid to the dimensions of the Level and fill it with "empty" tiles
-    _grid = Array2d<Tile>(level.numberOfRows, level.numberOfCols,
-        defaultValue: Tile(type: TileType.empty));
+    _grid = Array2d<Tile>(
+      level.numberOfRows,
+      level.numberOfCols,
+      defaultValue: Tile(type: TileType.empty),
+    );
 
     // Initialize the Random generator
     _rnd = math.Random();
@@ -160,12 +160,12 @@ class GameController {
   ///
   void shuffle() {
     TileType type;
-    Array2d<Tile> clone = _grid.clone<Tile>();
+    Array2d<Tile> clone = _grid.clone();
     bool isFirst = true;
 
     do {
       if (!isFirst) {
-        _grid = clone.clone<Tile>();
+        _grid = clone.clone();
       }
       isFirst = false;
 
@@ -187,37 +187,40 @@ class GameController {
               do {
                 type = Tile.random(_rnd);
               } while ((col > 1 &&
-                  _grid[row][col - 1].type == type &&
-                  _grid[row][col - 2].type == type) ||
+                      _grid[row][col - 1].type == type &&
+                      _grid[row][col - 2].type == type) ||
                   (row > 1 &&
                       _grid[row - 1][col].type == type &&
                       _grid[row - 2][col].type == type));
               tile = Tile(
-                  row: row,
-                  col: col,
-                  type: type,
-                  level: level,
-                  depth: (level.grid[row][col] == '2') ? 1 : 0);
+                row: row,
+                col: col,
+                type: type,
+                level: level,
+                depth: (level.grid[row][col] == '2') ? 1 : 0,
+              );
               break;
 
             case 'X':
-            // No cell
+              // No cell
               tile = Tile(
-                  row: row,
-                  col: col,
-                  type: TileType.forbidden,
-                  level: level,
-                  depth: 1);
+                row: row,
+                col: col,
+                type: TileType.forbidden,
+                level: level,
+                depth: 1,
+              );
               break;
 
             case 'W':
-            // A wall
+              // A wall
               tile = Tile(
-                  row: row,
-                  col: col,
-                  type: TileType.wall,
-                  level: level,
-                  depth: 1);
+                row: row,
+                col: col,
+                type: TileType.wall,
+                level: level,
+                depth: 1,
+              );
               break;
           }
 
@@ -276,7 +279,7 @@ class GameController {
           do {
             index++;
             move = _moves[index];
-//TODO: check if the move is allowed (barriers)
+            //TODO: check if the move is allowed (barriers)
             destRow = row + move.row;
             destCol = col + move.col;
 
@@ -309,27 +312,38 @@ class GameController {
 
               if (isDestNormalTile || toTile.type == TileType.empty) {
                 // Exchange the tiles
-                _grid[destRow][destCol] =
-                    Tile(row: row, col: col, type: fromTile.type, level: level);
+                _grid[destRow][destCol] = Tile(
+                  row: row,
+                  col: col,
+                  type: fromTile.type,
+                  level: level,
+                );
                 _grid[row][col] = Tile(
-                    row: destRow,
-                    col: destCol,
-                    type: toTile.type,
-                    level: level);
+                  row: destRow,
+                  col: destCol,
+                  type: toTile.type,
+                  level: level,
+                );
 
                 //
                 // check if this change creates a chain
                 //
                 ChainHelper chainHelper = ChainHelper();
 
-                Chain? chainH =
-                chainHelper.checkHorizontalChain(destRow, destCol, _grid);
+                Chain? chainH = chainHelper.checkHorizontalChain(
+                  destRow,
+                  destCol,
+                  _grid,
+                );
                 if (chainH != null) {
                   _addSwaps(fromTile, toTile);
                 }
 
-                Chain? chainV =
-                chainHelper.checkVerticalChain(destRow, destCol, _grid);
+                Chain? chainV = chainHelper.checkVerticalChain(
+                  destRow,
+                  destCol,
+                  _grid,
+                );
                 if (chainV != null) {
                   _addSwaps(fromTile, toTile);
                 }
@@ -379,11 +393,12 @@ class GameController {
   void swapTiles(Tile source, Tile destination) {
     RowCol sourceRowCol = RowCol(row: source.row, col: source.col);
     RowCol destRowCol = RowCol(row: destination.row, col: destination.col);
+
     ///交换目标糖果和原糖果的位置和坐标信息
     source.swapRowColWith(destination);
     Tile tft = grid[sourceRowCol.row][sourceRowCol.col];
     grid[sourceRowCol.row][sourceRowCol.col] =
-    grid[destRowCol.row][destRowCol.col];
+        grid[destRowCol.row][destRowCol.col];
     grid[destRowCol.row][destRowCol.col] = tft;
   }
 
@@ -397,7 +412,6 @@ class GameController {
 
     return Combo(horizontalChain, verticalChain, row, col);
   }
-
 
   /// Resolves a combo
   /// 移除糖果
@@ -432,7 +446,9 @@ class GameController {
   // Rebuilds the grid, once all animations are complete
   //
   void refreshGridAfterAnimations(
-      Array2d<TileType> tileTypes, Set<RowCol> involvedCells) {
+    Array2d<TileType> tileTypes,
+    Set<RowCol> involvedCells,
+  ) {
     for (final rowCol in involvedCells) {
       _grid[rowCol.row][rowCol.col].row = rowCol.row;
       _grid[rowCol.row][rowCol.col].col = rowCol.col;
@@ -444,13 +460,25 @@ class GameController {
     for (int row = 0; row < level.numberOfRows; row++) {
       for (int col = 0; col < level.numberOfCols; col++) {
         if (_grid[row][col].visible == false ||
-            (_grid[row][col].visible == true && _grid[row][col].type == TileType.empty)) {
-          final color = (["red","green","blue","orange","purple","yellow"]..shuffle()).first;
-          final newType = TileType.values.firstWhere((element) => element.name == color);
+            (_grid[row][col].visible == true &&
+                _grid[row][col].type == TileType.empty)) {
+          final color = ([
+            "red",
+            "green",
+            "blue",
+            "orange",
+            "purple",
+            "yellow",
+          ]..shuffle()).first;
+          final newType = TileType.values.firstWhere(
+            (element) => element.name == color,
+          );
           _grid[row][col].visible = true;
-          _grid[row][col].type =
-          (_grid[row][col].type != TileType.empty)?_grid[row][col].type:
-          (tileTypes[row][col] != TileType.empty) ? tileTypes[row][col] : newType;
+          _grid[row][col].type = (_grid[row][col].type != TileType.empty)
+              ? _grid[row][col].type
+              : (tileTypes[row][col] != TileType.empty)
+              ? tileTypes[row][col]
+              : newType;
 
           _grid[row][col].depth = 0;
           _grid[row][col].build();
@@ -463,8 +491,11 @@ class GameController {
   // Proceed with an explosion
   // The spread of the explosion depends on the type of bomb
   //
-  void proceedWithExplosion(Tile tileExplosion, GameBloc gameBloc,
-      {bool skipThis = false}) {
+  void proceedWithExplosion(
+    Tile tileExplosion,
+    GameBloc gameBloc, {
+    bool skipThis = false,
+  }) {
     // Normalize the bomb type
     TileType? expositionType = Tile.normalizeBombType(tileExplosion.type!);
 

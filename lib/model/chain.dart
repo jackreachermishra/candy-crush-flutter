@@ -1,5 +1,7 @@
 import 'dart:collection';
-import 'package:candycrush/model/tile.dart';
+
+import 'package:prismleaf_vale/model/tile.dart';
+
 import 'array_2d.dart';
 
 /// Chain,以糖果为中心，记录其上下左右与之匹配的糖果
@@ -14,10 +16,7 @@ class Chain {
   final _tiles = HashMap<int, Tile>();
   List<Tile> get tiles => _tiles.values.toList();
   // Constructor
-  Chain({
-    this.length = 0,
-    required this.type,
-  });
+  Chain({this.length = 0, required this.type});
 
   // Add a tile to the list of unique ones belonging to the chain
   void addTile(Tile? tile) {
@@ -29,8 +28,9 @@ class Chain {
 
   @override
   String toString() {
-    List<String> details =
-    tiles.map((Tile tile) => '[${tile.row},${tile.col}]').toList();
+    List<String> details = tiles
+        .map((Tile tile) => '[${tile.row},${tile.col}]')
+        .toList();
     return '$type${details.join(' - ')}';
   }
 }
@@ -110,7 +110,4 @@ class ChainHelper {
 }
 
 // Types of chains
-enum ChainType {
-  horizontal,
-  vertical,
-}
+enum ChainType { horizontal, vertical }

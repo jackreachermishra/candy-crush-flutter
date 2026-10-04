@@ -5,6 +5,7 @@ import '../model/level.dart';
 import 'model/tile_animation.dart';
 
 var _curve = Curves.fastLinearToSlowEaseIn;
+
 class AnimationChain extends StatefulWidget {
   const AnimationChain({
     super.key,
@@ -37,25 +38,29 @@ class _AnimationChainState extends State<AnimationChain>
   // Total duration, taking into consideration the number of different delays
   int totalDurationInMs = 0;
 
-
-
   @override
   void initState() {
     super.initState();
+
     /// We need to compute the total duration
-    totalDurationInMs = (widget.animationSequence!.endDelay + 1) * _delayInMs +
+    totalDurationInMs =
+        (widget.animationSequence!.endDelay + 1) * _delayInMs +
         _normalDurationInMs;
-    _controller = AnimationController(
-        duration: Duration(milliseconds: totalDurationInMs), vsync: this)
-      ..addListener(() {
-        setState(() {});})
-      ..addStatusListener((AnimationStatus status) {
-        if (status == AnimationStatus.completed) {
-          if (widget.onComplete != null) {
-            widget.onComplete?.call();
-          }
-        }
-      });
+    _controller =
+        AnimationController(
+            duration: Duration(milliseconds: totalDurationInMs),
+            vsync: this,
+          )
+          ..addListener(() {
+            setState(() {});
+          })
+          ..addStatusListener((AnimationStatus status) {
+            if (status == AnimationStatus.completed) {
+              if (widget.onComplete != null) {
+                widget.onComplete?.call();
+              }
+            }
+          });
 
     /// Let's build the list of all animations in the sequence
     for (final tileAnimation in widget.animationSequence!.animations) {
@@ -64,19 +69,18 @@ class _AnimationChainState extends State<AnimationChain>
       final double ratioStart = start / totalDurationInMs;
       final double ratioEnd = end / totalDurationInMs;
 
-      _animations.add(Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(
-          parent: _controller,
-          curve: Interval(
-            ratioStart,
-            ratioEnd,
-            curve: _curve,
+      _animations.add(
+        Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: Interval(ratioStart, ratioEnd, curve: _curve),
           ),
         ),
-      ));
+      );
     }
     _controller.forward(from: 0.0);
   }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -89,10 +93,14 @@ class _AnimationChainState extends State<AnimationChain>
     int totalAnimations = widget.animationSequence!.animations.length;
     int index = totalAnimations - 1;
     Widget theWidget = firstAnimation.tile.widget;
+
     /// In order to build the Widgets tree, we need to start from the last one up to the first
     while (index >= 0) {
       theWidget = _buildSubAnimationFactory(
-          index, widget.animationSequence!.animations[index], theWidget);
+        index,
+        widget.animationSequence!.animations[index],
+        theWidget,
+      );
       index--;
     }
 
@@ -108,13 +116,19 @@ class _AnimationChainState extends State<AnimationChain>
   }
 
   Widget _buildSubAnimationFactory(
-      int index, TileAnimation tileAnimation, Widget childWidget) {
+    int index,
+    TileAnimation tileAnimation,
+    Widget childWidget,
+  ) {
     Widget widget;
     switch (tileAnimation.animationType) {
       case TileAnimationType.newTile:
         _curve = Curves.fastOutSlowIn;
-        widget =
-            _buildSubAnimationAppearance(index, tileAnimation, childWidget);
+        widget = _buildSubAnimationAppearance(
+          index,
+          tileAnimation,
+          childWidget,
+        );
         break;
       case TileAnimationType.moveDown:
         _curve = Curves.fastOutSlowIn;
@@ -141,12 +155,16 @@ class _AnimationChainState extends State<AnimationChain>
   // followed by a move down
   //
   Widget _buildSubAnimationAppearance(
-      int index, TileAnimation tileAnimation, Widget childWidget) {
+    int index,
+    TileAnimation tileAnimation,
+    Widget childWidget,
+  ) {
     return Transform.translate(
       offset: Offset(
-          0.0,
-          -widget.level.tileHeight +
-              widget.level.tileHeight * _animations[index].value),
+        0.0,
+        -widget.level.tileHeight +
+            widget.level.tileHeight * _animations[index].value,
+      ),
       child: _buildSubAnimationMoveDown(index, tileAnimation, childWidget),
     );
   }
@@ -155,8 +173,12 @@ class _AnimationChainState extends State<AnimationChain>
   // A move down animation consists in moving the tile down to its final position
   //
   Widget _buildSubAnimationMoveDown(
-      int index, TileAnimation tileAnimation, Widget childWidget) {
-    final double distance = (tileAnimation.to.row - tileAnimation.from.row) *
+    int index,
+    TileAnimation tileAnimation,
+    Widget childWidget,
+  ) {
+    final double distance =
+        (tileAnimation.to.row - tileAnimation.from.row) *
         widget.level.tileHeight;
     return Transform.translate(
       offset: Offset(0.0, -_animations[index].value * distance),
@@ -168,14 +190,21 @@ class _AnimationChainState extends State<AnimationChain>
   // A slide consists in moving the tile horizontally
   //
   Widget _buildSubAnimationSlide(
-      int index, TileAnimation tileAnimation, Widget childWidget) {
-    final double distanceX = (tileAnimation.to.col - tileAnimation.from.col) *
+    int index,
+    TileAnimation tileAnimation,
+    Widget childWidget,
+  ) {
+    final double distanceX =
+        (tileAnimation.to.col - tileAnimation.from.col) *
         widget.level.tileWidth;
-    final double distanceY = (tileAnimation.to.row - tileAnimation.from.row) *
+    final double distanceY =
+        (tileAnimation.to.row - tileAnimation.from.row) *
         widget.level.tileHeight;
     return Transform.translate(
-      offset: Offset(_animations[index].value * distanceX,
-          -_animations[index].value * distanceY),
+      offset: Offset(
+        _animations[index].value * distanceX,
+        -_animations[index].value * distanceY,
+      ),
       child: childWidget,
     );
   }
@@ -184,7 +213,10 @@ class _AnimationChainState extends State<AnimationChain>
   // A chain consists in making tiles disappear
   //
   Widget _buildSubAnimationChain(
-      int index, TileAnimation tileAnimation, Widget childWidget) {
+    int index,
+    TileAnimation tileAnimation,
+    Widget childWidget,
+  ) {
     return Transform.scale(
       scale: (1.0 - _animations[index].value),
       child: childWidget,
@@ -195,14 +227,21 @@ class _AnimationChainState extends State<AnimationChain>
   // A collapse consists in moving the tile to the destination tile position
   //
   Widget _buildSubAnimationCollapse(
-      int index, TileAnimation tileAnimation, Widget childWidget) {
-    final double distanceX = (tileAnimation.to.col - tileAnimation.from.col) *
+    int index,
+    TileAnimation tileAnimation,
+    Widget childWidget,
+  ) {
+    final double distanceX =
+        (tileAnimation.to.col - tileAnimation.from.col) *
         widget.level.tileWidth;
-    final double distanceY = (tileAnimation.to.row - tileAnimation.from.row) *
+    final double distanceY =
+        (tileAnimation.to.row - tileAnimation.from.row) *
         widget.level.tileHeight;
     return Transform.translate(
-      offset: Offset(_animations[index].value * distanceX,
-          -_animations[index].value * distanceY),
+      offset: Offset(
+        _animations[index].value * distanceX,
+        -_animations[index].value * distanceY,
+      ),
       child: childWidget,
     );
   }
