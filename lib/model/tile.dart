@@ -50,7 +50,8 @@ class Tile extends Object {
 
   @override
   bool operator ==(Object other) {
-    return identical(this, other) || other.hashCode == hashCode;
+    return identical(this, other) ||
+        other is Tile && other.row == row && other.col == col;
   }
 
   @override
@@ -129,7 +130,7 @@ class Tile extends Object {
   //
   // Can the Tile move?
   //
-  bool get canMove => (depth == 0) && (canBePlayed(type!));
+  bool get canMove => depth == 0 && (isNormal(type!) || isBomb(type!));
 
   //
   // Can a Tile fall?
@@ -146,7 +147,7 @@ class Tile extends Object {
   static TileType random(math.Random rnd) {
     int minValue = _firstNormalTile;
     int maxValue = _lastNormalTile;
-    int value = rnd.nextInt(maxValue - minValue) + minValue;
+    int value = rnd.nextInt(maxValue - minValue + 1) + minValue;
     return TileType.values[value];
   }
 

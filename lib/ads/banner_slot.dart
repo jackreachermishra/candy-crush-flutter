@@ -70,6 +70,7 @@ class _BannerSlotState extends State<BannerSlot> {
         listener: BannerAdListener(
           onAdLoaded: (ad) {
             if (_pendingBanner != ad) {
+              ad.dispose();
               return;
             }
             _loadTimeout?.cancel();

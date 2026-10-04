@@ -47,6 +47,7 @@ class ProgressPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text('Current streak: ${progress.currentStreak} days'),
+                      Text('Longest streak: ${progress.longestStreak} days'),
                       const SizedBox(height: 12),
                       FilledButton.icon(
                         onPressed: progress.canClaimDaily
@@ -121,6 +122,28 @@ class ProgressPage extends StatelessWidget {
                       for (var level = 1; level <= 5; level++)
                         Text(
                           'Glade $level: ${progress.bestScores[level] ?? 0}',
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ValeCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recent glow rewards',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      if (progress.rewardHistory.isEmpty)
+                        const Text('Your rewards will appear here.'),
+                      for (final record in progress.rewardHistory.take(10))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            '${record.day}  •  ${record.kind == 'daily' ? 'Daily light (day ${record.detail})' : 'Glade ${record.detail} clear'}  •  +${record.glow} glow',
+                          ),
                         ),
                     ],
                   ),

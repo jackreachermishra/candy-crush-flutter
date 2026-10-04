@@ -17,11 +17,13 @@ void main() {
       expect(await progress.claimDaily(), 20);
       expect(await progress.claimDaily(), 0);
       expect(progress.dailyStreak, 1);
+      expect(progress.longestStreak, 1);
       now = DateTime(2026, 10, 5, 9);
       progress = GameProgress.forTesting(clock: () => now);
       await progress.load();
       expect(await progress.claimDaily(), 25);
       expect(progress.dailyStreak, 2);
+      expect(progress.longestStreak, 2);
       expect(progress.glow, 45);
       now = DateTime(2026, 10, 4, 9);
       expect(await progress.claimDaily(), 0);
@@ -29,6 +31,8 @@ void main() {
       expect(progress.currentStreak, 0);
       expect(await progress.claimDaily(), 20);
       expect(progress.dailyStreak, 1);
+      expect(progress.longestStreak, 2);
+      expect(progress.rewardHistory.length, 3);
     },
   );
 
@@ -50,11 +54,36 @@ void main() {
     expect(progress.twilightUnlocked, isTrue);
     expect(progress.selectedTheme, 'twilight');
     expect(progress.glow, 28);
+    expect(progress.rewardHistory.length, 3);
+    expect(progress.rewardHistory.first.kind, 'level');
     await progress.setHapticsEnabled(false);
     progress = GameProgress.forTesting();
     await progress.load();
     expect(progress.hapticsEnabled, isFalse);
   });
+
+  test(
+    'old streak saves migrate and reward history survives restart',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'prismleaf_daily_streak': 4,
+        'prismleaf_last_daily_claim': '2026-10-03',
+      });
+      var progress = GameProgress.forTesting(
+        clock: () => DateTime(2026, 10, 4),
+      );
+      await progress.load();
+      expect(progress.longestStreak, 4);
+      expect(progress.rewardHistory, isEmpty);
+      expect(await progress.claimDaily(), 40);
+      progress = GameProgress.forTesting(clock: () => DateTime(2026, 10, 4));
+      await progress.load();
+      expect(progress.longestStreak, 5);
+      expect(progress.rewardHistory.single.glow, 40);
+      expect(progress.rewardHistory.single.detail, 5);
+      expect(await progress.claimDaily(), 0);
+    },
+  );
 
   test('reward gate opens only after earned callback', () {
     expect(RewardAttempt().finish(), isFalse);

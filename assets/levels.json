@@ -17,7 +17,7 @@
                 "1,1,1,1,1,1,1,1,1,1"
             ],
             "moves": 24,
-            "objective": ["4;blue","20;red","2;bomb"]
+            "objective": ["4;blue","8;red","1;flare"]
         },
         {
             "level": 2,
@@ -31,7 +31,7 @@
                 "1,1,1,1,1"
             ],
             "moves": 24,
-            "objective": ["4;blue","20;red","2;bomb"]
+            "objective": ["4;blue","8;red","4;purple"]
         },
         {
             "level": 3,
@@ -50,7 +50,7 @@
                 "X,1,1,X,X,X,X,1,1,X"
             ],
             "moves": 24,
-            "objective": ["4;blue","20;red","2;bomb"]
+            "objective": ["6;blue","10;red","1;bomb"]
         },
         {
             "level": 4,
@@ -83,7 +83,7 @@
                 "X,1,X,1,X"
             ],
             "moves": 24,
-            "objective": ["4;blue","20;red","2;bomb"]
+            "objective": ["6;blue","8;red","4;purple"]
         }
     ]
 }

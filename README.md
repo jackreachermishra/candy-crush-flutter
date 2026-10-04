@@ -11,7 +11,7 @@ Prismleaf Vale is an offline Android match-three puzzle game. Swap faceted leave
 - `flutter test`
 - `flutter build apk --debug`
 
-The application ID is `com.jackreachermishra.prismleafvale`. Levels, best scores, daily rewards, glow, sound, and vibration preferences are stored locally with `shared_preferences`. The game needs no account or backend and remains playable without a network. It has optional AdMob banner and rewarded ads; there is no background music.
+The application ID is `com.jackreachermishra.prismleafvale`. Levels, best scores, daily rewards, current and longest streaks, recent reward history, glow, sound, and vibration preferences are stored locally with `shared_preferences`. Existing save keys remain in place; older streak data initializes the longest streak. The game needs no account or backend and remains playable without a network. It has optional AdMob banner and rewarded ads; there is no background music.
 
 ## Ads and consent
 
@@ -24,6 +24,8 @@ At launch, UMP refreshes consent information and displays a form if required. Ad
 ## Android release
 
 The release variant is no longer signed with debug keys. Create a private upload keystore and copy [`android/key.properties.example`](android/key.properties.example) to `android/key.properties`, then fill in the real values and keep both the keystore and properties private. Without signing credentials, a bundle is not upload ready. Confirm that `com.jackreachermishra.prismleafvale` is an identifier you control and that the AdMob App ID belongs to this app.
+
+Flutter 3.47.5 supplies target API 36 through `flutter.targetSdkVersion`, which meets Google Play's August 2026 target API requirement for new Android apps. Recheck that value and Play Console requirements with the installed Flutter SDK before submission. Changing the Android application ID creates a separate app sandbox; progress from an app installed under an older ID cannot migrate automatically through `shared_preferences`.
 
 1. Install the Android SDK and JDK; run `flutter doctor` and `flutter devices`.
 2. Run `flutter pub get`, `flutter analyze`, and `flutter test`.

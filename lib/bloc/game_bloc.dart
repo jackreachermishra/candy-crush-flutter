@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:quiver/iterables.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:get/get.dart';
 
 import '../controller/game_controller.dart';
 import '../model/level.dart';
@@ -53,6 +52,8 @@ class GameBloc implements BlocBase {
   final _scoreController = BehaviorSubject<int>.seeded(0);
   Stream<int> get scoreChanges => _scoreController.stream;
   int score = 0;
+  bool _levelWon = false;
+  bool get isLevelOver => _levelWon || gameController.level.movesLeft == 0;
 
   //
   // List of all level definitions
@@ -91,6 +92,7 @@ class GameBloc implements BlocBase {
     await _levelsLoaded;
     _levelNumber = (levelIndex - 1).clamp(0, _maxLevel - 1);
     score = 0;
+    _levelWon = false;
     _scoreController.add(score);
 
     //
@@ -127,9 +129,13 @@ class GameBloc implements BlocBase {
     score += counter * 10;
     _scoreController.add(score);
     // We first need to decrement the objective by the counter
-    Objective? objective = gameController.level.objectives.firstWhereOrNull(
-      (o) => o.type == tileType,
-    );
+    Objective? objective;
+    for (final candidate in gameController.level.objectives) {
+      if (candidate.type == tileType) {
+        objective = candidate;
+        break;
+      }
+    }
     if (objective == null) {
       return;
     }
@@ -141,18 +147,7 @@ class GameBloc implements BlocBase {
       ObjectiveEvent(type: tileType, remaining: objective.count),
     );
 
-    // Check if the game is won
-    bool isWon = true;
-    for (final Objective objective in gameController.level.objectives) {
-      if (objective.count > 0) {
-        isWon = false;
-      }
-    }
-
-    // If the game is won, send a notification
-    if (isWon) {
-      _gameIsOverController.sink.add(true);
-    }
+    // The board may still cascade; decide the result once the move finishes.
   }
 
   //
@@ -160,19 +155,24 @@ class GameBloc implements BlocBase {
   // left and check if the game is over
   //
   void playMove() {
+    if (isLevelOver) return;
     int movesLeft = gameController.level.decrementMove();
 
     // Emit the number of moves left (to refresh the moves left panel)
     _movesLeftController.sink.add(movesLeft);
 
     // There is no move left, so inform that the game is over
-    if (movesLeft == 0) {
+    final won = gameController.level.objectives.every((o) => o.count == 0);
+    if (won) {
+      _levelWon = true;
+      _gameIsOverController.sink.add(true);
+    } else if (movesLeft == 0) {
       _gameIsOverController.sink.add(false);
     }
   }
 
   void addMoves(int amount) {
-    if (amount <= 0) return;
+    if (amount <= 0 || _levelWon) return;
     _movesLeftController.sink.add(gameController.level.addMoves(amount));
   }
 

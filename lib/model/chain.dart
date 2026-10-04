@@ -40,8 +40,8 @@ class ChainHelper {
   Chain? checkVerticalChain(int row, int col, Array2d grid) {
     Chain chain = Chain(type: ChainType.vertical);
     int maxHeight = grid.height - 1;
-    int minRow = (row - 5).clamp(0, maxHeight);
-    int maxRow = (row + 5).clamp(0, maxHeight);
+    int minRow = 0;
+    int maxRow = maxHeight;
     int index = row;
     TileType? type = grid[row][col]?.type;
 
@@ -76,8 +76,8 @@ class ChainHelper {
   Chain? checkHorizontalChain(int row, int col, Array2d grid) {
     Chain chain = Chain(type: ChainType.horizontal);
     int maxWidth = grid.width - 1;
-    int minCol = (col - 5).clamp(0, maxWidth);
-    int maxCol = (col + 5).clamp(0, maxWidth);
+    int minCol = 0;
+    int maxCol = maxWidth;
     int index = col;
     TileType? type = grid[row][col]?.type;
 
@@ -87,7 +87,7 @@ class ChainHelper {
     // Search Left，向左搜索
     index = col - 1;
     while (index >= minCol &&
-        grid[index][col]?.type != null &&
+        grid[row][index]?.type != null &&
         grid[row][index]?.type == type &&
         grid[row][index]?.type != TileType.empty) {
       chain.addTile(grid[row][index]);
@@ -97,7 +97,7 @@ class ChainHelper {
     // Search Right，向右搜索
     index = col + 1;
     while (index <= maxCol &&
-        grid[index][col]?.type != null &&
+        grid[row][index]?.type != null &&
         grid[row][index]?.type == type &&
         grid[row][index]?.type != TileType.empty) {
       chain.addTile(grid[row][index]);

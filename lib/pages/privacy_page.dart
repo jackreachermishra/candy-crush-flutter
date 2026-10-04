@@ -24,7 +24,8 @@ class PrivacyPage extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text(
                     'Prismleaf Vale stores unlocked glades, scores, glow, '
-                    'daily rewards, and sound and color preferences on this '
+                    'daily rewards, streaks, recent reward history, and '
+                    'sound and color preferences on this '
                     'device. No account or game server is used. Clearing app '
                     'storage removes this local progress.',
                   ),

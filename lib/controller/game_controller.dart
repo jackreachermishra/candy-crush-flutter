@@ -20,8 +20,8 @@ class GameController {
   //
   // List of all possible Swaps
   //
-  late HashMap<int, Swap> _swaps;
-  List<Swap> get swaps => _swaps.values.toList();
+  late HashSet<Swap> _swaps;
+  List<Swap> get swaps => _swaps.toList();
 
   //
   // Helper to identify the variations of a move
@@ -151,7 +151,7 @@ class GameController {
     _rnd = math.Random();
 
     // Initialize the swaps Set
-    _swaps = HashMap<int, Swap>();
+    _swaps = HashSet<Swap>();
   }
 
   ///
@@ -162,8 +162,14 @@ class GameController {
     TileType type;
     Array2d<Tile> clone = _grid.clone();
     bool isFirst = true;
+    int attempts = 0;
 
     do {
+      if (++attempts > 1000) {
+        throw StateError(
+          'Could not create a playable board for level ${level.index}',
+        );
+      }
       if (!isFirst) {
         _grid = clone.clone();
       }
@@ -275,7 +281,7 @@ class GameController {
         isSrcNormalTile = Tile.isNormal(fromTile.type!);
         isSrcBombTile = Tile.isBomb(fromTile.type!);
 
-        if (isSrcNormalTile || isSrcBombTile) {
+        if (fromTile.canMove && (isSrcNormalTile || isSrcBombTile)) {
           do {
             index++;
             move = _moves[index];
@@ -291,6 +297,7 @@ class GameController {
 
               // If the destination does not exist, skip
               if (toTile.type == TileType.forbidden) continue;
+              if (toTile.type != TileType.empty && !toTile.canMove) continue;
 
               // If the source tile is a bomb or if the destination tile is empty, all swaps are possible
               if (isSrcBombTile) {
@@ -370,23 +377,18 @@ class GameController {
   }
 
   //
-  // Since the hashCode varies with the direction of a swap, we need
-  // to record both
+  // Record both directions so either drag direction is accepted.
   //
   void _addSwaps(Tile fromTile, Tile toTile) {
-    Swap newSwap = Swap(from: fromTile, to: toTile);
-    _swaps.putIfAbsent(newSwap.hashCode, () => newSwap);
-
-    newSwap = Swap(from: toTile, to: fromTile);
-    _swaps.putIfAbsent(newSwap.hashCode, () => newSwap);
+    _swaps.add(Swap(from: fromTile, to: toTile));
+    _swaps.add(Swap(from: toTile, to: fromTile));
   }
 
   //
   // Check if the swap between 2 tiles is recognized
   //
   bool swapContains(Tile source, Tile destination) {
-    Swap testSwap = Swap(from: source, to: destination);
-    return _swaps.keys.contains(testSwap.hashCode);
+    return _swaps.contains(Swap(from: source, to: destination));
   }
 
   /// Swap 2 tiles，交换两个糖果的位置和坐标信息
@@ -462,17 +464,7 @@ class GameController {
         if (_grid[row][col].visible == false ||
             (_grid[row][col].visible == true &&
                 _grid[row][col].type == TileType.empty)) {
-          final color = ([
-            "red",
-            "green",
-            "blue",
-            "orange",
-            "purple",
-            "yellow",
-          ]..shuffle()).first;
-          final newType = TileType.values.firstWhere(
-            (element) => element.name == color,
-          );
+          final newType = Tile.random(_rnd);
           _grid[row][col].visible = true;
           _grid[row][col].type = (_grid[row][col].type != TileType.empty)
               ? _grid[row][col].type
@@ -517,21 +509,21 @@ class GameController {
           col > -1 &&
           col < level.numberOfCols) {
         // And also if we may explode the tile
-        if (level.grid[row][col] == '1') {
+        if (level.grid[row][col] == '1' || level.grid[row][col] == '2') {
           Tile? tile = _grid[row][col];
-          if (tile != null &&
+          if (tile == null || tile.type == TileType.empty) return;
+          if (tile.depth == 0 &&
               Tile.isBomb(tile.type!) &&
               !skipThis &&
-              tile.row != tileExplosion.row &&
-              tile.col != tileExplosion.col) {
+              (tile.row != tileExplosion.row ||
+                  tile.col != tileExplosion.col)) {
             // Another bomb must explode
             subExplosions.add(tile);
           } else {
             // Notify that we removed some tiles
-            gameBloc.pushTileEvent(tile!.type!, 1);
-
             // Empty the cell
             if (tile.depth == 0) {
+              gameBloc.pushTileEvent(tile.type!, 1);
               tile.type = TileType.empty;
             } else {
               // This tile was frozen, so unfreeze this one level down

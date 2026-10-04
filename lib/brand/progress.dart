@@ -3,6 +3,48 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class RewardRecord {
+  const RewardRecord({
+    required this.day,
+    required this.kind,
+    required this.glow,
+    this.detail = 0,
+  });
+
+  final String day;
+  final String kind;
+  final int glow;
+  final int detail;
+
+  Map<String, Object> toJson() => {
+    'day': day,
+    'kind': kind,
+    'glow': glow,
+    'detail': detail,
+  };
+
+  static RewardRecord? fromJson(Object? value) {
+    if (value is! Map<String, dynamic> ||
+        value['day'] is! String ||
+        value['kind'] is! String ||
+        value['glow'] is! int ||
+        value['detail'] is! int) {
+      return null;
+    }
+    if (DateTime.tryParse(value['day'] as String) == null ||
+        !['daily', 'level'].contains(value['kind']) ||
+        (value['glow'] as int) < 0) {
+      return null;
+    }
+    return RewardRecord(
+      day: value['day'] as String,
+      kind: value['kind'] as String,
+      glow: value['glow'] as int,
+      detail: value['detail'] as int,
+    );
+  }
+}
+
 /// Local progress and small cosmetic rewards. Device clock and preferences are
 /// user controlled, so these rewards are intentionally not tamper resistant.
 class GameProgress extends ChangeNotifier {
@@ -19,6 +61,12 @@ class GameProgress extends ChangeNotifier {
   static const _hapticsKey = 'prismleaf_haptics_enabled';
   static const _lastClaimKey = 'prismleaf_last_daily_claim';
   static const _streakKey = 'prismleaf_daily_streak';
+  static const _longestStreakKey = 'prismleaf_longest_streak';
+  static const _rewardHistoryKey = 'prismleaf_reward_history';
+  static const _rewardHistoryLimit = 30;
+  static const dailyBaseGlow = 20;
+  static const dailyStreakStepGlow = 5;
+  static const dailyStreakCap = 7;
   static const _glowKey = 'prismleaf_glow';
   static const _winsKey = 'prismleaf_total_wins';
   static const _bestKey = 'prismleaf_best_scores';
@@ -31,6 +79,7 @@ class GameProgress extends ChangeNotifier {
   int highestCompletedLevel = 0;
   int glow = 0;
   int dailyStreak = 0;
+  int longestStreak = 0;
   int totalWins = 0;
   bool soundEnabled = true;
   bool hapticsEnabled = true;
@@ -38,6 +87,15 @@ class GameProgress extends ChangeNotifier {
   String selectedTheme = 'forest';
   String? _lastClaimDay;
   final Map<int, int> bestScores = {};
+  final List<RewardRecord> _rewardHistory = [];
+  List<RewardRecord> get rewardHistory => List.unmodifiable(_rewardHistory);
+
+  void _recordReward(RewardRecord record) {
+    _rewardHistory.insert(0, record);
+    if (_rewardHistory.length > _rewardHistoryLimit) {
+      _rewardHistory.removeRange(_rewardHistoryLimit, _rewardHistory.length);
+    }
+  }
 
   String _dayKey(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
@@ -83,6 +141,8 @@ class GameProgress extends ChangeNotifier {
     hapticsEnabled = _preferences?.getBool(_hapticsKey) ?? true;
     glow = (_preferences?.getInt(_glowKey) ?? 0).clamp(0, 1000000000);
     dailyStreak = (_preferences?.getInt(_streakKey) ?? 0).clamp(0, 1000000);
+    longestStreak = (_preferences?.getInt(_longestStreakKey) ?? dailyStreak)
+        .clamp(dailyStreak, 1000000);
     totalWins = (_preferences?.getInt(_winsKey) ?? 0).clamp(0, 1000000000);
     _lastClaimDay = _preferences?.getString(_lastClaimKey);
     twilightUnlocked = _preferences?.getBool(_twilightKey) ?? false;
@@ -91,6 +151,7 @@ class GameProgress extends ChangeNotifier {
         ? 'twilight'
         : 'forest';
     bestScores.clear();
+    _rewardHistory.clear();
     try {
       final saved = jsonDecode(
         _preferences?.getString(_bestKey) ?? '{}',
@@ -104,6 +165,18 @@ class GameProgress extends ChangeNotifier {
     } catch (_) {
       // Corrupt optional stats do not prevent loading the game.
     }
+    try {
+      final saved = jsonDecode(
+        _preferences?.getString(_rewardHistoryKey) ?? '[]',
+      ) as List<dynamic>;
+      for (final item in saved) {
+        final record = RewardRecord.fromJson(item);
+        if (record != null) _rewardHistory.add(record);
+        if (_rewardHistory.length == _rewardHistoryLimit) break;
+      }
+    } catch (_) {
+      // Old saves did not have a history; corrupt optional history is ignored.
+    }
     notifyListeners();
   }
 
@@ -113,14 +186,30 @@ class GameProgress extends ChangeNotifier {
     final previous = _dayNumber(_lastClaimDay);
     final gap = previous == null ? null : _dayNumber(today)! - previous;
     dailyStreak = gap == 1 ? dailyStreak + 1 : 1;
-    final reward = 20 + (dailyStreak.clamp(1, 7) - 1) * 5;
+    if (dailyStreak > longestStreak) longestStreak = dailyStreak;
+    final reward =
+        dailyBaseGlow +
+        (dailyStreak.clamp(1, dailyStreakCap) - 1) * dailyStreakStepGlow;
     glow += reward;
     _lastClaimDay = today;
+    _recordReward(
+      RewardRecord(
+        day: today,
+        kind: 'daily',
+        glow: reward,
+        detail: dailyStreak,
+      ),
+    );
     notifyListeners();
     await Future.wait([
       _preferences!.setString(_lastClaimKey, today),
       _preferences!.setInt(_streakKey, dailyStreak),
+      _preferences!.setInt(_longestStreakKey, longestStreak),
       _preferences!.setInt(_glowKey, glow),
+      _preferences!.setString(
+        _rewardHistoryKey,
+        jsonEncode(_rewardHistory.map((record) => record.toJson()).toList()),
+      ),
     ]);
     return reward;
   }
@@ -144,12 +233,24 @@ class GameProgress extends ChangeNotifier {
         (firstClear ? 30 : 0) +
         (firstClear && level % 3 == 0 ? 50 : 0);
     glow += bonus;
+    _recordReward(
+      RewardRecord(
+        day: _dayKey(_clock()),
+        kind: 'level',
+        glow: bonus,
+        detail: level,
+      ),
+    );
     notifyListeners();
     await Future.wait([
       _preferences!.setInt(_unlockedKey, unlockedLevel),
       _preferences!.setInt(_completedKey, highestCompletedLevel),
       _preferences!.setInt(_winsKey, totalWins),
       _preferences!.setInt(_glowKey, glow),
+      _preferences!.setString(
+        _rewardHistoryKey,
+        jsonEncode(_rewardHistory.map((record) => record.toJson()).toList()),
+      ),
       _preferences!.setString(
         _bestKey,
         jsonEncode(bestScores.map((key, value) => MapEntry('$key', value))),

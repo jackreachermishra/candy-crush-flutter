@@ -23,7 +23,7 @@ Suggested capture order: home, trail with unlocked levels, live gameplay after t
 
 Follow a trail through Prismleaf Vale, a quiet valley lit by every match. Swap colorful faceted leaves, collect each glade's objectives, and clear the board before your moves run out. Special pieces add a spark, while a fresh shuffle keeps the trail moving when swaps run dry.
 
-Explore five glades with different board shapes and goals. Completed glades unlock the next stop, and your progress stays on your device. Claim daily glow, track your best scores, and unlock a Twilight backdrop. Turn sound effects on or off at any time. The game plays offline without an account; optional ads may appear on the trail map or offer extra moves after a loss.
+Explore five glades with different board shapes and goals. Completed glades unlock the next stop, and your progress stays on your device. Claim daily glow, track your current and longest streaks and best scores, and unlock a Twilight backdrop. Turn sound effects on or off at any time. The game plays offline without an account; optional ads may appear on the trail map or offer extra moves after a loss.
 
 **Relevant search terms for editorial review:** match three, offline puzzle, tile matching, colorful gems, casual puzzle, level progression.
 

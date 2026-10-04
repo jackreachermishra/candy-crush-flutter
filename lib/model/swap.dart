@@ -9,11 +9,16 @@ class Swap extends Object {
   Swap({required this.from, required this.to});
 
   @override
-  int get hashCode => from.hashCode * 1000 + to.hashCode;
+  int get hashCode => Object.hash(from.row, from.col, to.row, to.col);
 
   @override
   bool operator ==(Object other) {
-    return identical(other, this) || other.hashCode == hashCode;
+    return identical(other, this) ||
+        other is Swap &&
+            other.from.row == from.row &&
+            other.from.col == from.col &&
+            other.to.row == to.row &&
+            other.to.col == to.col;
   }
 
   @override

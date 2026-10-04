@@ -56,6 +56,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       await Navigator.of(
         context,
       ).push(MaterialPageRoute<void>(builder: (_) => GamePage(level: level)));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open this glade. Please try again.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loadingLevel = false);
     }

@@ -495,8 +495,8 @@ class _GamePageState extends State<GamePage>
                       if (isSourceTileABomb) {
                         _gameBloc.gameController.proceedWithExplosion(
                           Tile(
-                            row: destTile.row,
-                            col: destTile.row,
+                            row: _gestureFromTile!.row,
+                            col: _gestureFromTile!.col,
                             type: _gestureFromTile!.type,
                           ),
                           _gameBloc,
@@ -512,7 +512,8 @@ class _GamePageState extends State<GamePage>
                       // Record the fact that we have played a move
                       _gameBloc.playMove();
 
-                      if (!_gameBloc.gameController.stillMovesToPlay()) {
+                      if (!_gameBloc.isLevelOver &&
+                          !_gameBloc.gameController.stillMovesToPlay()) {
                         // No moves left
                         await _showReshufflingSplash();
                         _gameBloc.gameController.reshuffling();
@@ -523,7 +524,7 @@ class _GamePageState extends State<GamePage>
                     }
 
                     // 7. Reset
-                    _allowGesture = true;
+                    _allowGesture = !_gameBloc.isLevelOver;
                     _onPanEnd(null);
                     if (mounted) {
                       setState(() {});
@@ -567,18 +568,18 @@ class _GamePageState extends State<GamePage>
         _gameBloc.gameController.identifySwaps();
 
         // The user may now play
-        _allowGesture = true;
-
         // Record the fact that we have played a move
         _gameBloc.playMove();
 
         // Check if there are still moves to play
-        if (!_gameBloc.gameController.stillMovesToPlay()) {
+        if (!_gameBloc.isLevelOver &&
+            !_gameBloc.gameController.stillMovesToPlay()) {
           // No moves left
           await _showReshufflingSplash();
           _gameBloc.gameController.reshuffling();
           setState(() {});
         }
+        _allowGesture = !_gameBloc.isLevelOver;
       });
     }
   }
@@ -690,8 +691,7 @@ class _GamePageState extends State<GamePage>
     /// Determine the list of cells that are involved in the animation(s)
     /// and make them invisible
     if (animationResolver.involvedCells.isEmpty) {
-      /// At first glance, there is no animations... so directly return
-      completer.complete(null);
+      return null;
     }
 
     // Obtain the animation sequences
@@ -770,6 +770,7 @@ class _GamePageState extends State<GamePage>
       return;
     }
     _gameOverReceived = true;
+    _allowGesture = false;
     if (GameProgress.instance.hapticsEnabled && success) {
       unawaited(HapticFeedback.mediumImpact());
     }

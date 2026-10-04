@@ -17,6 +17,7 @@ import '../../model/level.dart';
 class AnimationsResolver {
   final GameBloc gameBloc;
   final Level level;
+  final math.Random _random = math.Random();
   late GameController gameController;
 
   AnimationsResolver({required this.gameBloc, required this.level}) {
@@ -187,7 +188,7 @@ class AnimationsResolver {
         if (_state[row][col] == CellState.empty) {
           // This cell is empty.  Is there an available occupied cell that could fill this one ?
           // 检查左右两边是否有位置
-          final bool leftCol = (col - 1 > 0);
+          final bool leftCol = (col - 1 >= 0);
           final bool rightCol = (col + 1 <= level.numberOfCols - 1);
           RowCol? from;
 
@@ -378,7 +379,7 @@ class AnimationsResolver {
     // Counter of moves caused by an avalanche effect
     int movesCounter = 0;
 
-    final bool leftCol = (col - 1 > 0);
+    final bool leftCol = (col - 1 >= 0);
     final bool rightCol = (col + 1 <= level.numberOfCols - 1);
 
     /// Let's process all cases
@@ -609,9 +610,7 @@ class AnimationsResolver {
           // Make sure not to inject a direct combo
           while (newTileType == null ||
               newTileType == previousInsertedTileType) {
-            newTileType = Tile.random(
-              math.Random(),
-            ); // Generate a new random tile type
+            newTileType = Tile.random(_random);
           }
           previousInsertedTileType = newTileType;
 

@@ -48,7 +48,7 @@ class Combo {
     });
 
     int total = _tiles.length;
-    _type = ComboType.values[total];
+    _type = ComboType.values[total.clamp(0, ComboType.values.length - 1)];
 
     // If the combo contains more than 3 tiles but is not the combination of both horizontal and vertical chains
     // we need to determine the tile which created the chain
@@ -111,7 +111,7 @@ class Combo {
         resultingTileType = TileType.wrapped;
         break;
 
-      case 7:
+      case >= 7:
         resultingTileType = TileType.fireball;
         break;
     }

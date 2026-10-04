@@ -49,5 +49,6 @@ class Objective extends Object {
   //
   void reset() {
     count = initialValue;
+    completed = false;
   }
 }
